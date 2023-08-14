@@ -1,0 +1,4 @@
+anger emotion
+joy emotion
+optimism emotion
+sadness emotion

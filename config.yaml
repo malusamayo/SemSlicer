@@ -1,0 +1,53 @@
+SLICING:
+  KEYWORDS_PATH: data/keywords.txt
+  SAMPLE_SIZE: 8
+  PROMPT_TEMPLATES: {
+    "NP": [
+      "Is this passage about {keyword}?",
+      "Does this passage mention {keyword}?",
+      "Is {keyword} mentioned in this passage?",
+      "Would you say this passage is related to {keyword}?",
+      "Is this passage related to {keyword}?",
+      "Is this passage relevant to {keyword}?",
+      "Can you find anything related to {keyword} in this passage?",
+      "Is {keyword} discussed in this passage?",
+      "Is anything related to {keyword} discussed in this passage?",
+      "Would you classify this passage as related to {keyword}?",
+    ],
+    "ADJP": [
+      "Is this passage {keyword}?",
+      "Would you say this passage is {keyword}?",
+      "Does this passage mention something that is {keyword}?",
+      "Is there anything {keyword} discussed in this passage?",
+      "Would you classify this passage as {keyword}?",
+      "Do you feel this passage is {keyword}?",
+      "Would you consider this passage to be {keyword}?",
+      "Is the content of this passage {keyword}?",
+      "Would you label this passage as {keyword}?",
+      "Does this passage contain {keyword} elements?",
+    ],
+    "VP": [
+      "Does the passage {keyword}?",
+      "Is the passage inclined to {keyword}?",
+      "Is there any mention in the passage that {keyword}?",
+      "Does the passage indicate anything that {keyword}?",
+      "Is there any statement in the passage that {keyword}?",
+      "Would you categorize the passage as having elements that {keyword}?",
+      "Does the passage encompass elements that {keyword}?",
+      "Do you spot any references in the passage that {keyword}?",
+      "Can you point out parts of the passage that suggest {keyword}?",
+      "Is there any content within the passage that {keyword}?"
+    ],
+    "PP": [
+      "Is the passage {keyword}?",
+      "Does the passage mention anything that is {keyword}?",
+      "Is there anything {keyword} discussed in the passage?",
+      "Does the passage allude to anything that is {keyword}?",
+      "Would you classify the passage as mention anything {keyword}?",
+      "Does the passage provide insight into anything that is {keyword}?",
+      "Is there any talk of things {keyword} in the passage?",
+      "Is there anything {keyword} in the passage?",
+      "Is there any mention of things {keyword} in the passage?",
+      "Can you find any allusions to things {keyword} in the passage?"
+    ]
+  }
