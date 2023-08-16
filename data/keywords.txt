@@ -1,4 +1,1 @@
-anger emotion
-joy emotion
-optimism emotion
-sadness emotion
+have angry emotion

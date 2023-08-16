@@ -1,1 +1,4 @@
 *__pycache__/
+slurm*
+result.csv
+output.txt
