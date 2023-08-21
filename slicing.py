@@ -8,10 +8,10 @@ import pandas as pd
 from multiprocessing.connection import Client
 import time
 import re
-
+from llama import Llama2Wrapper
 nlp = StanfordCoreNLP('../stanford-corenlp-4.5.4')
 language_tool = language_tool_python.LanguageTool('en-US')
-conn = None
+generator = None
 # Please reply the question with a single word "No" or "Yes". If you are unsure, answer "Unsure" instead of "Yes" or "No".
 PROMPT_SUFFIX = ''' Please first simply state your reason, then answer the question with "My Answer is No." or "My Answer is Yes." in a new line. If you are unsure, answer with "My Answer is Unsure." instead of "My Answeris No." or "My Answer is Yes.".
 
@@ -33,28 +33,47 @@ EXAMPLE_PROMPT2 = "Does this passage explicitly mentioned nature topics?" + PROM
 EXAMPLE_ANSWER2 = '''The passage indicates that the speaker bought a pancake and it was terrible. The speaker will never buy food from that place again. It does not mention any nature topics.
 My Answer is No.'''
 
-FIND_PROMPT = '''Can you strictly paraphrase the following question in 10 different ways? \
-List your diverse paraphrases below. Do not include additional information.'''
+FIND_PROMPT = '''Can you strictly paraphrase the following question in 10 ways without changing the meaning of the question? \
+List your paraphrases below. Do not include additional information in your answers.'''
 
 def init():
-    address = ('localhost', 7000)
-    global conn
-    print("waiting for server")
-    while True:
-        try:
-            conn = Client(address, authkey=b'secret password')
-            print("connected to server")
-            return
-        except ConnectionRefusedError:
-            time.sleep(5)
-            continue
+    model_size = "7b-chat"
+    global generator
+    try:
+        generator = Llama2Wrapper(
+            "/home/yiningho/workspace/datadisk/llama/llama-2-{}".format(model_size),
+            is_chat_model=True,
+            load_4bit=False,
+        )
+    except:
+        print(
+            "Loading from /home/yiningho/workspace/datadisk/llama/llama-2-{} failed. Using huggingface hub.".format(
+                model_size
+            )
+        )
+        generator = Llama2Wrapper(
+            "meta-llama/Llama-2-{}-hf".format(model_size),
+            is_chat_model=True,
+            load_4bit=False,
+        )
 
-def _send_request(prompt):
+
+def _send_request(
+    dialogs,
+    max_gen_len=512,
+    temperature=0.01,
+    top_p=0.9,
+):
     '''
     example for prompt:[{"role": "user", "content": "what is the recipe of mayonnaise?"}]
     '''
-    conn.send(prompt)
-    return conn.recv()
+    results = generator.chat_completion(
+        dialogs,
+        max_gen_len=max_gen_len,
+        temperature=temperature,
+        top_p=top_p,
+    )
+    return [result[0]['generated_text'] for result in results]
 
 def _find_prompts(keyword, prompt_templates):
     '''
@@ -85,8 +104,7 @@ def _find_prompts(keyword, prompt_templates):
     prompts = language_tool.correct(prompts)
 
     # request for prompts
-    results = _send_request([{"role": "system", "content": FIND_PROMPT}, {"role": "user", "content": prompts}])
-    # print(results)
+    results = _send_request([[{"role": "system", "content": FIND_PROMPT}, {"role": "user", "content": prompts}]], temperature=0)[0]
 
     # clean results
     results = results.split("\n")
@@ -114,49 +132,59 @@ def slicing(args):
     df = pd.DataFrame(dataset['train'])
     print("loaded dataset")
     print(df.info())
+    # random select data
+    test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"])
+
+    # save prompt
+    prompt_df = pd.DataFrame()
     # process keywords
     for keyword in keywords:
         print("processing keyword: {keyword}".format(keyword=keyword))
 
         # get prompts
         prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
-
-        # random select data
-        test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"])
+        prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
         # print(test_data)
-        test_data["result"] = 0.0
+        test_data["{}_result".format(keyword)] = 0.0
         for index, prompt in enumerate(prompts):
             print("processing prompt: {prompt}".format(prompt=prompt))
             # get meta output data
-            test_data["prompt{}_meta".format(index)] = test_data["text"].apply(
-                lambda x: _send_request(
-                    [
-                        {"role": "user", "content": EXAMPLE_PROMPT1},
-                        {"role": "assistant", "content": EXAMPLE_ANSWER1},
-                        {"role": "user", "content": EXAMPLE_PROMPT2},
-                        {"role": "assistant", "content": EXAMPLE_ANSWER2},
-                        {"role": "user", "content": prompt.format(passage=x)}
-                    ]
-                )
-            )
-            test_data["prompt{}".format(index)] = test_data["prompt{}_meta".format(index)].apply(
+            dialogs = [
+                [
+                    # {"role": "user", "content": EXAMPLE_PROMPT1},
+                    # {"role": "assistant", "content": EXAMPLE_ANSWER1},
+                    {"role": "user", "content": EXAMPLE_PROMPT2},
+                    {"role": "assistant", "content": EXAMPLE_ANSWER2},
+                    {"role": "user", "content": prompt.format(passage=x)}
+                ]
+                for x in test_data["text"]
+            ]
+            results = _send_request(dialogs, temperature=0.5)
+            print(results)
+            test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = "no implemented"
+            i = 0
+            for idx, row in test_data.iterrows():
+                test_data.at[idx, "{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = results[i]
+                i += 1
+            print(test_data)
+            test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)].apply(
                 lambda x: 1 if x.find("My Answer is Yes") != -1 else 0
             )
             # print(test_data)
-            test_data["result"] += test_data["prompt{}".format(index)]
-        test_data["result"] = test_data["result"] / len(prompts)
-        test_data["hypothesis"] = test_data["result"].apply(lambda x: 1 if x >= config["SLICING"]["THRESHOLD"] else 0)
-        # print(test_data[['label', 'result']])
-        count_true_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] == 0)])
-        count_true_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] != 0)])
-        count_false_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] != 0)])
-        count_false_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] == 0)])
-        print("true positive: {count}".format(count=count_true_positive))
-        print("true negative: {count}".format(count=count_true_negative))
-        print("false positive: {count}".format(count=count_false_positive))
-        print("false negative: {count}".format(count=count_false_negative))
-        # save as csv
-        test_data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
-    conn.send("close")
+            test_data["{}_result".format(keyword)] += test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
+        test_data["{}_result".format(keyword)] = test_data["{}_result".format(keyword)] / len(prompts)
+        # test_data["hypothesis"] = test_data["result"].apply(lambda x: 1 if x >= config["SLICING"]["THRESHOLD"] else 0)
+        # # print(test_data[['label', 'result']])
+        # count_true_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] == 0)])
+        # count_true_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] != 0)])
+        # count_false_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] != 0)])
+        # count_false_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] == 0)])
+        # print("true positive: {count}".format(count=count_true_positive))
+        # print("true negative: {count}".format(count=count_true_negative))
+        # print("false positive: {count}".format(count=count_false_positive))
+        # print("false negative: {count}".format(count=count_false_negative))
+    # save as csv
+    test_data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
+    prompt_df.to_csv(config["SLICING"]["PROMPT_PATH"], index=False)
     nlp.close()
     language_tool.close()

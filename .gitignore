@@ -2,3 +2,5 @@
 slurm*
 result.csv
 output.txt
+hf-models-cache/
+*.csv
