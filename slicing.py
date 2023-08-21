@@ -9,6 +9,10 @@ from multiprocessing.connection import Client
 import time
 import re
 from llama import Llama2Wrapper
+from utils.log import get_logger
+
+logger = get_logger("INFO", "slicing")
+
 nlp = StanfordCoreNLP('../stanford-corenlp-4.5.4')
 language_tool = language_tool_python.LanguageTool('en-US')
 generator = None
@@ -46,7 +50,7 @@ def init():
             load_4bit=False,
         )
     except:
-        print(
+        logger.info(
             "Loading from /home/yiningho/workspace/datadisk/llama/llama-2-{} failed. Using huggingface hub.".format(
                 model_size
             )
@@ -85,11 +89,11 @@ def _find_prompts(keyword, prompt_templates):
     label = tree[0].label()
     if label == 'S' or label == 'FRAG':
         label = tree[0][0].label()
-    print("{keyword}: {label}".format(keyword=keyword, label=label))
+    logger.info("{keyword}: {label}".format(keyword=keyword, label=label))
 
     # invalid label
     if label not in prompt_templates:
-        print(tree)
+        logger.info(tree)
         return []
     
     # # get prompts using templates
@@ -114,15 +118,15 @@ def _find_prompts(keyword, prompt_templates):
     results = [re.sub(remove_index_pattern, '', s) for s in results]
 
     prompts = [item + PROMPT_SUFFIX for item in results]
-    # print(prompts)
-    print("successfully found prompts for {keyword}".format(keyword=keyword))
+    # logger.info(prompts)
+    logger.info("successfully found prompts for {keyword}".format(keyword=keyword))
     return prompts
 
 def slicing(args):
     # config
     config = read_yaml_config("./config.yaml")
-    print(args)
-    print(config)
+    logger.info(args)
+    logger.info(config)
     init()
     # load keyword file
     keywords = read_txt_file(config["SLICING"]["KEYWORDS_PATH"])
@@ -130,8 +134,8 @@ def slicing(args):
     # load dataset
     dataset = load_dataset("tweet_eval", "emotion")
     df = pd.DataFrame(dataset['train'])
-    print("loaded dataset")
-    print(df.info())
+    logger.info("loaded dataset")
+    logger.info(df.info())
     # random select data
     test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"])
 
@@ -139,15 +143,15 @@ def slicing(args):
     prompt_df = pd.DataFrame()
     # process keywords
     for keyword in keywords:
-        print("processing keyword: {keyword}".format(keyword=keyword))
+        logger.info("processing keyword: {keyword}".format(keyword=keyword))
 
         # get prompts
         prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
         prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
-        # print(test_data)
+        # logger.info(test_data)
         test_data["{}_result".format(keyword)] = 0.0
         for index, prompt in enumerate(prompts):
-            print("processing prompt: {prompt}".format(prompt=prompt))
+            logger.info("processing prompt: {prompt}".format(prompt=prompt))
             # get meta output data
             dialogs = [
                 [
@@ -160,29 +164,29 @@ def slicing(args):
                 for x in test_data["text"]
             ]
             results = _send_request(dialogs, temperature=0.5)
-            print(results)
+            # logger.info(results)
             test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = "no implemented"
             i = 0
             for idx, row in test_data.iterrows():
                 test_data.at[idx, "{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = results[i]
                 i += 1
-            print(test_data)
+            # logger.info(test_data)
             test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)].apply(
                 lambda x: 1 if x.find("My Answer is Yes") != -1 else 0
             )
-            # print(test_data)
+            # logger.info(test_data)
             test_data["{}_result".format(keyword)] += test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
         test_data["{}_result".format(keyword)] = test_data["{}_result".format(keyword)] / len(prompts)
         # test_data["hypothesis"] = test_data["result"].apply(lambda x: 1 if x >= config["SLICING"]["THRESHOLD"] else 0)
-        # # print(test_data[['label', 'result']])
+        # # logger.info(test_data[['label', 'result']])
         # count_true_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] == 0)])
         # count_true_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] != 0)])
         # count_false_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] != 0)])
         # count_false_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] == 0)])
-        # print("true positive: {count}".format(count=count_true_positive))
-        # print("true negative: {count}".format(count=count_true_negative))
-        # print("false positive: {count}".format(count=count_false_positive))
-        # print("false negative: {count}".format(count=count_false_negative))
+        # logger.info("true positive: {count}".format(count=count_true_positive))
+        # logger.info("true negative: {count}".format(count=count_true_negative))
+        # logger.info("false positive: {count}".format(count=count_false_positive))
+        # logger.info("false negative: {count}".format(count=count_false_negative))
     # save as csv
     test_data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
     prompt_df.to_csv(config["SLICING"]["PROMPT_PATH"], index=False)

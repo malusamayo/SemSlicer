@@ -1,9 +1,9 @@
 SLICING:
   KEYWORDS_PATH: data/keywords.txt
   SAMPLE_SIZE: 500
-  THRESHOLD: 0.7
-  OUTPUT_PATH: result2.csv
-  PROMPT_PATH: prompt.csv
+  THRESHOLD: 0.8
+  OUTPUT_PATH: result_final.csv
+  PROMPT_PATH: prompt_final.csv
   PROMPT_TEMPLATES: {
     "NP": [
       "Does this passage explicitly have {keyword}?",
