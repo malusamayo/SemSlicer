@@ -1,4 +1,4 @@
-from BinaryModel import *
+from cubam.BinaryModel import *
 from numpy import ones, log10, nonzero, flipud, diag
 from numpy.random import multinomial
 from scipy.stats import beta
@@ -126,7 +126,7 @@ class BinaryBiasModel(BinaryModel):
     # TODO: load and save parameters
 
     def optimize_worker_param(self):
-        for (wId, labels) in self.wkrLbls.iteritems():
+        for wId in self.wkrLbls:
             n = [[0.0, 0.0], [0.0, 0.0]] # [gt, label]
             # count no. of false alarms etc
             for (iId, lij) in self.wkrLbls[wId]:

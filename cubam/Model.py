@@ -5,8 +5,10 @@ from numpy import array, linspace, meshgrid, concatenate, reshape, exp, \
 from numpy.random import rand, randn, gamma
 from scipy.optimize import fmin_slsqp, fmin_l_bfgs_b
 from ctypes import CDLL, c_char_p, c_void_p, c_double, c_int, cast, POINTER
-from annmodel import annmodel
-from utils import randtn, write_data_file
+from cubam.annmodel import annmodel
+from cubam.utils import randtn, write_data_file
+
+# s = c_char_p()
 
 ## main model class
 class Model:
@@ -15,7 +17,9 @@ class Model:
   """
   def __init__(self, filename=None, data=None):
     className = self.__class__.__name__
-    self.mPtr = annmodel.setup_model(c_char_p(className))
+    # global s
+    # s.value = className.encode('utf-8')
+    self.mPtr = annmodel.setup_model(className.encode('utf-8'))
     self.wkrIds = {}
     self.imgIds = {}
     if filename:
@@ -34,8 +38,10 @@ class Model:
       prm = yaml.load(open(yamlfile))
       self.imgIds = prm['imgIds']
       self.wkrIds = prm['wkrIds']
-    filename = c_char_p(filename)
-    annmodel.load_data(self.mPtr, filename)
+    # global s
+    # s.value = filename.encode('utf-8')
+    annmodel.load_data(self.mPtr, filename.encode('utf-8'))
+    
     
   def get_num_wkrs(self):
     return annmodel.get_num_wkrs(self.mPtr)
@@ -57,7 +63,13 @@ class Model:
     if not prm is None:
       # prm is set, ignore raw and set the
       oprm = self.get_model_param()
-      for (key, val) in prm.iteritems(): oprm[key] = val
+    #   print(oprm)
+    #   print(type(oprm))
+    #   print(prm)
+    #   print(type(prm))
+      for key in prm:
+        oprm[key] = prm[key]
+    #   for (key, val) in prm.iteritems(): oprm[key] = val
       raw = []
       for key in self._mdlPrmList: raw.append(oprm[key])
     # add the raw vector
@@ -134,7 +146,7 @@ class Model:
   
   def optimize_param(self, numIter=30, options=None, verbose=False):
     for n in range(numIter):
-      if verbose: print("- iteration {num1}/{num2}".format(num=n+1, num2=numIter))
+      if verbose: print("  - iteration %d/%d" % (n+1, numIter))
       self.optimize_image_param()
       self.optimize_worker_param()
   

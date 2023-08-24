@@ -1,11 +1,12 @@
 SLICING:
   KEYWORDS_PATH: data/keywords.txt
-  SAMPLE_SIZE: 500
+  SAMPLE_SIZE: 400
   THRESHOLD: 0.8
-  OUTPUT_PATH: result_final.csv
-  PROMPT_PATH: prompt_final.csv
+  OUTPUT_PATH: result_irony.csv
+  PROMPT_PATH: prompt_irony.csv
+  DATASET_PATH: data/irony.csv
   PROMPT_TEMPLATES: {
-    "NP": [
+    "NOUN": [
       "Does this passage explicitly have {keyword}?",
       # "Is there {keyword} in this passage?",
       # "Does this passage mainly talks about {keyword}?",
@@ -17,7 +18,7 @@ SLICING:
       # "Is there indication of {keyword} in this passage?",
       # "Is {keyword} obvious in this passage?"
     ],
-    "ADJP": [
+    "ADJ": [
       "Is this passage explicitly {keyword}?",
       # "Would you say this passage is {keyword}?",
       # "Does this passage mention something that is {keyword}?",
@@ -29,7 +30,7 @@ SLICING:
       # "Would you label this passage as {keyword}?",
       # "Does this passage contain {keyword} elements?",
     ],
-    "VP": [
+    "VERB": [
       "Does the passage explicitly {keyword}?",
       # "Is the passage inclined to {keyword}?",
       # "Is there any mention in the passage that {keyword}?",
@@ -41,7 +42,7 @@ SLICING:
       # "Can you point out parts of the passage that suggest {keyword}?",
       # "Is there any content within the passage that {keyword}?"
     ],
-    "PP": [
+    "ADP": [
       "Is the passage explicitly {keyword}?",
       # "Does the passage mainly talk about things {keyword}?",
       # "Is there things {keyword} discussed in the passage?",

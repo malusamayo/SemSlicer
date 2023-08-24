@@ -1,7 +1,7 @@
-from BinaryModel import *
-from Binary1dSignalModel import Binary1dSignalModel
+from cubam.BinaryModel import *
+from cubam.Binary1dSignalModel import Binary1dSignalModel
 from numpy import sign, mod, sin, cos, dot
-from utils import tw2tsw
+from cubam.utils import tw2tsw
 
 class BinaryNdSignalModel(BinaryModel):
     def __init__(self, filename=None, dim=2):
@@ -27,10 +27,10 @@ class BinaryNdSignalModel(BinaryModel):
     def get_worker_param(self, id=None):
         prm = self.get_worker_param_raw()
         dim = self.get_model_param()['dim']
-        nwkrs = len(prm)/(1+dim)
+        nwkrs = int(len(prm)/(1+dim))
         offset = nwkrs*dim
         if id is None:
-            return dict((id, prm[dim*id:dim*(id+1)]+[prm[offset+id]]) \
+            return dict((id, prm[int(dim*id):int(dim*(id+1))]+[prm[offset+id]]) \
               for id in range(nwkrs))
         else:
             return prm[dim*id:dim*(id+1)]+[prm[offset+id]]
@@ -38,7 +38,7 @@ class BinaryNdSignalModel(BinaryModel):
     def get_image_param(self, id=None):
         prm = self.get_image_param_raw()
         dim = self.get_model_param()['dim']
-        nimgs = len(prm)/dim
+        nimgs = int(len(prm)/dim)
         if id is None:
             return dict((id, prm[dim*id:dim*(id+1)]) \
               for id in range(nimgs))

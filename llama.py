@@ -12,8 +12,16 @@ from transformers import (
 )
 from typing import List, Dict
 import time
+import concurrent.futures
 
 logger = logging.getLogger(__name__)
+
+def _divide_list_into_sublists(input_list, num_sublists):
+    avg_len = int(len(input_list) / num_sublists) + 1
+
+    sublists = [input_list[min(i * avg_len, len(input_list)): min((i + 1) * avg_len, len(input_list))] for i in range(num_sublists)]
+    
+    return sublists
 
 B_INST, E_INST = "[INST]", "[/INST]"
 B_SYS, E_SYS = "<<SYS>>\n", "\n<</SYS>>\n\n"
@@ -35,7 +43,7 @@ class Llama2Wrapper:
         self.no_cuda = (os.environ["CUDA_VISIBLE_DEVICES"] == "")
         self.use_cuda = not self.no_cuda
         START_TIME = time.perf_counter()
-        print("Start loading {}...".format(model_name))
+        logger.info("Start loading {}...".format(model_name))
         if self.use_cuda:
             from transformers import BitsAndBytesConfig
             quantization_config = BitsAndBytesConfig(
@@ -50,56 +58,69 @@ class Llama2Wrapper:
             cache_dir="./hf-models-cache/",
             use_auth_token="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",
         )
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            cache_dir="./hf-models-cache/",
-            device_map="auto" if self.use_cuda else None,
-            quantization_config=quantization_config,
-            use_auth_token="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",
-        )
-        self.model.eval()
-        print("Done with {:.2f} seconds.".format(time.perf_counter() - START_TIME))
+        device_map = {
+            'model.embed_tokens': "nan", 
+            'model.layers.0': "nan", 
+            'model.layers.1': "nan", 
+            'model.layers.2': "nan", 
+            'model.layers.3': "nan", 
+            'model.layers.4': "nan", 
+            'model.layers.5': "nan", 
+            'model.layers.6': "nan", 
+            'model.layers.7': "nan", 
+            'model.layers.8': "nan", 
+            'model.layers.9': "nan", 
+            'model.layers.10': "nan", 
+            'model.layers.11': "nan", 
+            'model.layers.12': "nan", 
+            'model.layers.13': "nan", 
+            'model.layers.14': "nan", 
+            'model.layers.15': "nan", 
+            'model.layers.16': "nan", 
+            'model.layers.17': "nan", 
+            'model.layers.18': "nan", 
+            'model.layers.19': "nan", 
+            'model.layers.20': "nan", 
+            'model.layers.21': "nan", 
+            'model.layers.22': "nan", 
+            'model.layers.23': "nan", 
+            'model.layers.24': "nan", 
+            'model.layers.25': "nan", 
+            'model.layers.26': "nan", 
+            'model.layers.27': "nan", 
+            'model.layers.28': "nan", 
+            'model.layers.29': "nan", 
+            'model.layers.30': "nan", 
+            'model.layers.31': "nan", 
+            'model.norm': "nan", 
+            'lm_head': 'nan'
+        }
+        self.device_count = torch.cuda.device_count()
+        self.model = []
+        for item in range(self.device_count):
+            for layer in device_map:
+                device_map[layer] = item
+            self.model.append(
+                AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    cache_dir="./hf-models-cache/",
+                    device_map=device_map,
+                    quantization_config=quantization_config,
+                    use_auth_token="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"
+                )
+            )
+            self.model[-1].eval()
+        logger.info("Done with {:.2f} seconds.".format(time.perf_counter() - START_TIME))
         self.debug_mode = debug_mode
         self.is_chat_model = is_chat_model
-        self.pipeline = pipeline(
-            "text-generation",
-            model=self.model,
-            tokenizer=self.tokenizer,
-        )
-
-    @torch.no_grad()
-    def completion(
-        self, prompts, max_gen_len,
-        temperature, top_p,
-        return_prob=False,
-        calc_str=None
-    ) -> List[
-        List[Dict[str, str]]
-    ]:
-        assert not self.is_chat_model
-        if return_prob:
-            assert calc_str is not None
-            input_ids = self.tokenizer.encode(
-                prompts[0] + " " + calc_str,
-                return_tensors="pt")
-            str_encoded = self.tokenizer.encode(
-                calc_str, return_tensors="pt")[0]
-            if self.use_cuda:
-                input_ids = input_ids.cuda(0)
-                str_encoded = str_encoded.cuda(0)
-            res = self.model(input_ids).logits[0][-1-len(str_encoded):-1]
-            res = torch.gather(torch.softmax(res, dim=-1), 1, str_encoded.unsqueeze(1))
-            res = torch.sum(torch.log(res)) / len(str_encoded)
-            return res.cpu().item()
-        else:
-            generated_results = self.pipeline(
-                prompts,
-                temperature=temperature,
-                top_p=top_p,
-                max_new_tokens=max_gen_len,
-                return_full_text=False,
-            )
-            return generated_results
+        self.pipeline = [
+            pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=self.tokenizer,
+                device=device
+            ) for device, model in enumerate(self.model)
+        ]
 
     @torch.no_grad()
     def chat_completion(
@@ -151,6 +172,7 @@ class Llama2Wrapper:
             prompt_tokens.append(dialog_tokens)
             logger.debug(dialog_tokens)
         if return_prob:
+            raise("Not implemented yet")
             assert calc_str is not None
             input_ids = self.tokenizer.encode(
                 prompt_tokens[0] + " " + calc_str,
@@ -165,13 +187,24 @@ class Llama2Wrapper:
             res = torch.sum(torch.log(res)) / len(str_encoded)
             return res.cpu().item()
         else:
-            generated_results = self.pipeline(
-                prompt_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                max_new_tokens=max_gen_len,
-                return_full_text=False,
-            )
+            prompt_token_list = _divide_list_into_sublists(prompt_tokens, self.device_count)
+            generated_results = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
+                futures = []
+                for i in range(self.device_count):
+                    if len(prompt_token_list[i]) > 0:
+                        futures.append(
+                            executor.submit(
+                                self.pipeline[i], 
+                                prompt_token_list[i], 
+                                temperature=temperature, 
+                                top_p=top_p, 
+                                max_length=max_gen_len, 
+                                return_full_text=False
+                            )
+                        )
+                for future in concurrent.futures.as_completed(futures):
+                    generated_results += future.result()
             return generated_results
 
 
@@ -226,7 +259,7 @@ These are just a few of the many attractions that Paris has to offer. With so mu
             load_4bit=load_in_4bits,
         )
     except:
-        print(
+        logger.info(
             "Loading from /home/yiningho/workspace/datadisk/llama/llama-2-{} failed. Using huggingface hub.".format(
                 args.model_size
             )
@@ -245,7 +278,7 @@ These are just a few of the many attractions that Paris has to offer. With so mu
         top_p=top_p,
     )
     for result in results:
-        print(result)
+        logger.info(result)
     # for dialog in dialogs:
     #     result = generator.chat_completion(
     #         [dialog],  # type: ignore
@@ -254,9 +287,9 @@ These are just a few of the many attractions that Paris has to offer. With so mu
     #         top_p=top_p,
     #     )[0]
     #     for msg in dialog:
-    #         print(f"{msg['role'].capitalize()}: {msg['content']}\n")
-    #     print(f"> Assistant: {result[0]['generated_text']}")
-    #     print("\n==================================\n")
+    #         logger.info(f"{msg['role'].capitalize()}: {msg['content']}\n")
+    #     logger.info(f"> Assistant: {result[0]['generated_text']}")
+    #     logger.info("\n==================================\n")
 
 
 if __name__ == "__main__":

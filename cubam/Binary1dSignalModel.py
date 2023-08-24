@@ -1,4 +1,4 @@
-from BinaryModel import *
+from cubam.BinaryModel import *
 from numpy import sign
 
 class Binary1dSignalModel(BinaryModel):
@@ -38,7 +38,7 @@ class Binary1dSignalModel(BinaryModel):
     
   def get_worker_param(self, id=None):
     prm = self.get_worker_param_raw()
-    nprm = len(prm)/2
+    nprm = int(len(prm)/2)
     if id is None:
       return dict((id, [prm[id], prm[nprm+id]]) for id in range(nprm))
     else:

@@ -240,7 +240,7 @@ def subsample_datafile(filename, tarDir, numTrials, annPerImg, gt=None,
     if verbose: print("Sub-sampling labels")
     fileList = []
     for t in range(numTrials):
-        if verbose: print("- trial {num1}/{num2}".format(num1=t+1, num2=numTrials))
+        if verbose: print("- trial %d/%d" % (t+1, numTrials))
         prefix = '%s/trial-%02d' % (tarDir, t)
         wkrIdToIdx = {}
         labelList = []

@@ -1,4 +1,4 @@
-from Model import *
+from cubam.Model import *
 from numpy import sign
 
 class BinaryModel(Model):

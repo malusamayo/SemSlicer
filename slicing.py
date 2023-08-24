@@ -1,8 +1,5 @@
 from utils.load_config import read_yaml_config
 from utils.file import read_txt_file
-from stanfordcorenlp import StanfordCoreNLP
-from nltk.tree import Tree
-import language_tool_python
 from datasets import load_dataset
 import pandas as pd
 from multiprocessing.connection import Client
@@ -10,11 +7,9 @@ import time
 import re
 from llama import Llama2Wrapper
 from utils.log import get_logger
+import spacy
 
 logger = get_logger("INFO", "slicing")
-
-nlp = StanfordCoreNLP('../stanford-corenlp-4.5.4')
-language_tool = language_tool_python.LanguageTool('en-US')
 generator = None
 # Please reply the question with a single word "No" or "Yes". If you are unsure, answer "Unsure" instead of "Yes" or "No".
 PROMPT_SUFFIX = ''' Please first simply state your reason, then answer the question with "My Answer is No." or "My Answer is Yes." in a new line. If you are unsure, answer with "My Answer is Unsure." instead of "My Answeris No." or "My Answer is Yes.".
@@ -37,8 +32,8 @@ EXAMPLE_PROMPT2 = "Does this passage explicitly mentioned nature topics?" + PROM
 EXAMPLE_ANSWER2 = '''The passage indicates that the speaker bought a pancake and it was terrible. The speaker will never buy food from that place again. It does not mention any nature topics.
 My Answer is No.'''
 
-FIND_PROMPT = '''Can you strictly paraphrase the following question in 10 ways without changing the meaning of the question? \
-List your paraphrases below. Do not include additional information in your answers.'''
+FIND_PROMPT = '''Strictly paraphrase the following question without changing the meaning of the question. \
+List 10 strict paraphrases below. Do not include additional information that the question does not mention in your answers. Use simple language.'''
 
 def init():
     model_size = "7b-chat"
@@ -61,10 +56,9 @@ def init():
             load_4bit=False,
         )
 
-
 def _send_request(
     dialogs,
-    max_gen_len=512,
+    max_gen_len=1024,
     temperature=0.01,
     top_p=0.9,
 ):
@@ -77,25 +71,24 @@ def _send_request(
         temperature=temperature,
         top_p=top_p,
     )
-    return [result[0]['generated_text'] for result in results]
+    return [result[0]['generated_text'].strip() for result in results]
 
 def _find_prompts(keyword, prompt_templates):
     '''
     find prompts for a keyword
     '''
     # parse to find pos (label)
-    tree = nlp.parse(keyword)
-    tree = Tree.fromstring(tree)
-    label = tree[0].label()
-    if label == 'S' or label == 'FRAG':
-        label = tree[0][0].label()
+    nlp = spacy.load("en_core_web_md")
+    doc = nlp(keyword)
+    root = [token for token in doc if token.head == token][0]
+    label = root.pos_
     logger.info("{keyword}: {label}".format(keyword=keyword, label=label))
-
+    if label == "PROPN":
+        label = "NOUN"
     # invalid label
     if label not in prompt_templates:
-        logger.info(tree)
+        logger.info(keyword, label)
         return []
-    
     # # get prompts using templates
     # prompts = [item.format(keyword=keyword) + PROMPT_SUFFIX for item in prompt_templates[label]]
 
@@ -105,18 +98,41 @@ def _find_prompts(keyword, prompt_templates):
     prompts = [item.format(keyword=keyword) for item in prompt_templates[label]][0]
 
     #correct grammars
-    prompts = language_tool.correct(prompts)
+    # prompts = language_tool.correct(prompts)
 
     # request for prompts
-    results = _send_request([[{"role": "system", "content": FIND_PROMPT}, {"role": "user", "content": prompts}]], temperature=0)[0]
-
+    logger.info(prompts)
+    results = _send_request(
+        [[
+            {"role": "system", "content": FIND_PROMPT}, 
+            {"role": "user", "content": "{}".format(prompts)}
+        ]], 
+        temperature=0.1
+    )[0]
+    if results.find("I cannot") == 0:
+        logger.info(results)
+        return []
+    logger.info(results)
     # clean results
     results = results.split("\n")
     index_pattern = r'^\d+\.\s'
     results = [s for s in results if re.match(index_pattern, s)]
     remove_index_pattern = r'^\d+\.\s'
     results = [re.sub(remove_index_pattern, '', s) for s in results]
-
+    # doc1 = nlp(prompts)
+    # print(prompts)
+    # for item in results:
+    #     doc2 = nlp(item)
+    #     print(doc1.similarity(doc2), item)
+    from parascore import ParaScorer
+    scorer = ParaScorer(lang="en", model_type = 'bert-base-uncased')
+    logger.info(prompts)
+    for item in results:
+        score = scorer.free_score([item], [prompts])
+        logger.info("{score}, {sentence}".format(score=score, sentence=item))
+    for item in results:
+        score = scorer.free_score([item], [keyword])
+        logger.info("{score}, {sentence}".format(score=score, sentence=item))
     prompts = [item + PROMPT_SUFFIX for item in results]
     # logger.info(prompts)
     logger.info("successfully found prompts for {keyword}".format(keyword=keyword))
@@ -132,8 +148,7 @@ def slicing(args):
     keywords = read_txt_file(config["SLICING"]["KEYWORDS_PATH"])
 
     # load dataset
-    dataset = load_dataset("tweet_eval", "emotion")
-    df = pd.DataFrame(dataset['train'])
+    df = pd.read_csv(config["SLICING"]["DATASET_PATH"])
     logger.info("loaded dataset")
     logger.info(df.info())
     # random select data
@@ -141,12 +156,19 @@ def slicing(args):
 
     # save prompt
     prompt_df = pd.DataFrame()
+
+    unsuccessful_keywords = []
     # process keywords
     for keyword in keywords:
         logger.info("processing keyword: {keyword}".format(keyword=keyword))
 
         # get prompts
         prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
+        # continue
+        if len(prompts) == 0:
+            logger.info("no prompts found for {keyword}".format(keyword=keyword))
+            unsuccessful_keywords.append(keyword)
+            continue
         prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
         # logger.info(test_data)
         test_data["{}_result".format(keyword)] = 0.0
@@ -177,18 +199,7 @@ def slicing(args):
             # logger.info(test_data)
             test_data["{}_result".format(keyword)] += test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
         test_data["{}_result".format(keyword)] = test_data["{}_result".format(keyword)] / len(prompts)
-        # test_data["hypothesis"] = test_data["result"].apply(lambda x: 1 if x >= config["SLICING"]["THRESHOLD"] else 0)
-        # # logger.info(test_data[['label', 'result']])
-        # count_true_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] == 0)])
-        # count_true_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] != 0)])
-        # count_false_positive = len(test_data[(test_data['hypothesis'] == 1) & (test_data['label'] != 0)])
-        # count_false_negative = len(test_data[(test_data['hypothesis'] == 0) & (test_data['label'] == 0)])
-        # logger.info("true positive: {count}".format(count=count_true_positive))
-        # logger.info("true negative: {count}".format(count=count_true_negative))
-        # logger.info("false positive: {count}".format(count=count_false_positive))
-        # logger.info("false negative: {count}".format(count=count_false_negative))
+    logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
     # save as csv
     test_data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
     prompt_df.to_csv(config["SLICING"]["PROMPT_PATH"], index=False)
-    nlp.close()
-    language_tool.close()
