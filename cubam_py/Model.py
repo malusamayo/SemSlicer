@@ -5,8 +5,8 @@ from numpy import array, linspace, meshgrid, concatenate, reshape, exp, \
 from numpy.random import rand, randn, gamma
 from scipy.optimize import fmin_slsqp, fmin_l_bfgs_b
 from ctypes import CDLL, c_char_p, c_void_p, c_double, c_int, cast, POINTER
-from cubam.annmodel import annmodel
-from cubam.utils import randtn, write_data_file
+from cubam_py.annmodel import annmodel
+from cubam_py.utils import randtn, write_data_file
 
 # s = c_char_p()
 
@@ -61,17 +61,14 @@ class Model:
       - `prm`: hash of model parameter values to be changed
     """
     if not prm is None:
-      # prm is set, ignore raw and set the
       oprm = self.get_model_param()
-    #   print(oprm)
-    #   print(type(oprm))
-    #   print(prm)
-    #   print(type(prm))
+      print(oprm)
+    #   exit(-1)
       for key in prm:
         oprm[key] = prm[key]
-    #   for (key, val) in prm.iteritems(): oprm[key] = val
       raw = []
-      for key in self._mdlPrmList: raw.append(oprm[key])
+      for key in self._mdlPrmList:
+        raw.append(oprm[key])
     # add the raw vector
     plen = annmodel.get_model_param_len(self.mPtr)
     assert len(raw) == plen, \
@@ -144,7 +141,7 @@ class Model:
     self.set_image_param(res[0])
     return res
   
-  def optimize_param(self, numIter=30, options=None, verbose=False):
+  def optimize_param(self, numIter=400, options=None, verbose=False):
     for n in range(numIter):
       if verbose: print("  - iteration %d/%d" % (n+1, numIter))
       self.optimize_image_param()

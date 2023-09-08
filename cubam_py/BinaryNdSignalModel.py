@@ -1,7 +1,7 @@
-from cubam.BinaryModel import *
-from cubam.Binary1dSignalModel import Binary1dSignalModel
+from cubam_py.BinaryModel import *
+from cubam_py.Binary1dSignalModel import Binary1dSignalModel
 from numpy import sign, mod, sin, cos, dot
-from cubam.utils import tw2tsw
+from cubam_py.utils import tw2tsw
 
 class BinaryNdSignalModel(BinaryModel):
     def __init__(self, filename=None, dim=2):

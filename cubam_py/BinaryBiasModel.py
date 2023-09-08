@@ -1,4 +1,4 @@
-from cubam.BinaryModel import *
+from cubam_py.BinaryModel import *
 from numpy import ones, log10, nonzero, flipud, diag
 from numpy.random import multinomial
 from scipy.stats import beta

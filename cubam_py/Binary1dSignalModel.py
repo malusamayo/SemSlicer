@@ -1,4 +1,4 @@
-from cubam.BinaryModel import *
+from cubam_py.BinaryModel import *
 from numpy import sign
 
 class Binary1dSignalModel(BinaryModel):

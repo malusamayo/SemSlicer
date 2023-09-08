@@ -4,3 +4,9 @@ result.csv
 output.txt
 hf-models-cache/
 *.csv
+*.so
+llama/
+result/
+slicing/
+slicing1/
+data/

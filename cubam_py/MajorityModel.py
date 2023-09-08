@@ -1,4 +1,4 @@
-from BinaryModel import *
+from cubam_py.BinaryModel import *
 from numpy.random import rand
 
 class MajorityModel(BinaryModel):

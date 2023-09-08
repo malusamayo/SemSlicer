@@ -2,9 +2,9 @@
 Contains functions that make use of the classes to produce label estimates.
 """
 import yaml, os
-from Binary1dSignalModel import Binary1dSignalModel
-from BinaryBiasModel import BinaryBiasModel
-from MajorityModel import MajorityModel
+from cubam_py.Binary1dSignalModel import Binary1dSignalModel
+from cubam_py.BinaryBiasModel import BinaryBiasModel
+from cubam_py.MajorityModel import MajorityModel
 
 def run_model_on_file(modelName, filename=None, modelPrm=None, optimizePrm=None,
                       outputPrefix=None):
