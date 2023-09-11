@@ -1,6 +1,6 @@
 SLICING:
   KEYWORDS_PATH: data/keywords.txt
-  SAMPLE_SIZE: 150
+  SAMPLE_SIZE: 300
   OUTPUT_PATH: slicing/result.csv
   PROMPT_PATH: slicing/
   DATASET_PATH: hotpotQA.csv

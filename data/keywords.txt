@@ -11,6 +11,7 @@ about literature
 about music
 about rare topics
 about common topics
+related to expert knowledge
 with multiple intentions
 with single intention
 mention specific people
@@ -19,13 +20,8 @@ mention specific organizations
 mention specific events
 mention specific dates
 mention specific numbers
-mention specific quantities
 explicitly biased
 implicitly biased
-explicitly subjective
-implicitly subjective
-explicitly objective
-implicitly objective
 positive sentiment
 negative sentiment
 neutral sentiment
@@ -45,28 +41,11 @@ simple sentence structure
 answer ranking
 has location: hospital
 has location: museum
-question start with "who"
-question start with "what"
-question start with "when"
-question start with "where"
-question start with "why"
-question start with "how"
-question start with "which"
-question start with "is"
-question start with "are"
-question start with "do"
-question start with "does"
-question start with "did"
-question start with "can"
-question start with "could"
-question start with "should"
-question start with "would"
-question start with "will"
-question start with "was"
-question start with "were"
-question start with "has"
-question start with "have"
-question start with "had"
+question start with word "who"
+question start with word "what"
+question start with word "when"
+question start with word "where"
+question start with word "which"
 question that you can not answer without reading the context
 question that you can answer without reading the context
 female issues
