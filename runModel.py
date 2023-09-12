@@ -1,8 +1,9 @@
 from llama import Llama2Wrapper
 from utils.load_config import read_yaml_config
 from utils.log import get_logger
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 import random
+import pandas as pd
 
 logger = get_logger("INFO", "run model")
 generator = None
@@ -13,6 +14,8 @@ SYSTEM_PROMPT='''You will receive several paragraphs with their title. The you w
 your answer here
 
 Your answer shoud be a short phrase less than 10 words. You must not type anything except the answer phrase.'''
+
+# 1-shot example
 EXAMPLE_QUESTION='''What is the name of the first person to walk on the moon?'''
 EXAMPLE_ANSWER='''Neil Armstrong'''
 EXAMPLE_TITLE=['''Apollo 11''']
@@ -25,6 +28,7 @@ as pilot Michael Collins flew the Command Module Columbia in lunar orbit, and we
 36 minutes before lifting off to rejoin Columbia.''']
                  
 def init():
+    # load model
     model_size = "13b-chat"
     global generator
     try:
@@ -55,7 +59,7 @@ def _send_request(
     batch_size=40
 ):
     '''
-    example for prompt:[{"role": "user", "content": "what is the recipe of mayonnaise?"}]
+    example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
     '''
     results = generator.chat_completion(
         dialogs,
@@ -73,10 +77,13 @@ def run_model(args):
     logger.info(config)
     init()
 
+    # load dataset
     dataset = load_dataset("hotpot_qa", "distractor")['train']
     logger.info("loaded dataset")
     logger.info(dataset.column_names)
     logger.info(len(dataset))
+
+    # filter dataset
     dataset = dataset.filter(
         lambda example: len(
             ' '.join(
@@ -95,10 +102,11 @@ def run_model(args):
         with_indices=False
     )
     logger.info(len(dataset))
+
     # random sample dataset
     dataset = dataset.shuffle(seed=random.randint(0, 1000)).select(range(config["RUN"]["SAMPLE_SIZE"]))
 
-
+    # generate dialogs
     dialogs = [
         [
             {
@@ -129,16 +137,66 @@ Your answer shoud be a short phrase strictly less than 10 words. You must not ty
         ]
         for row in dataset
     ]
-    # dialogs = [item for item in dialogs if len(' '.join([item[0]["content"], item[1]["content"]]).split()) < 2000]
+    
     logger.info("generated dialogs")
+
+    # generate results
     results = _send_request(dialogs=dialogs, max_gen_len=1700, temperature=0.02, batch_size=10)
     logger.info("generated results")
-    # logger.info(results)
-    # for row in dataset:
-    #     logger.info(row["answer"])
+    
     # save results to datasets
     dataset = dataset.add_column("generated_answer", results)
     logger.info("added column")
 
     # save to disk
     dataset.save_to_disk(config["RUN"]["OUTPUT_PATH"])
+
+    # save to csv
+    transform_data(config)
+
+def transform_data(config):
+    # save to csv
+    dataset = load_from_disk(config["RUN"]["OUTPUT_PATH"])
+    df = pd.DataFrame()
+    df['full_text'] = [
+        '\n\n'.join(
+                    [
+                        "# Title\n{title}\n# Passage\n{passage}".format(
+                            title=title,
+                            passage=' '.join(sentences)
+                        ) 
+                        for title, sentences in zip(row["context"]["title"], row["context"]["sentences"])
+                    ]
+                    + [
+                        '# Question\n{question}'.format(question=row["question"])
+                    ]
+                )
+        for row in dataset
+    ]
+
+    # text is the part that we use to slice data
+    df['text'] = [
+        row["question"]
+        for row in dataset
+    ]
+    df['answer'] = [
+        row['answer']
+        for row in dataset
+    ]
+    df['generated_answer'] = [
+        row['generated_answer']
+        for row in dataset
+    ]
+    df['level'] = [
+        row['level']
+        for row in dataset
+    ]
+    df['supporting_facts'] = [
+        str(row['supporting_facts'])
+        for row in dataset
+    ]
+    df['id'] = [
+        row['id']
+        for row in dataset
+    ]
+    df.to_csv(config["RUN"]["CSV_PATH"], index=False)

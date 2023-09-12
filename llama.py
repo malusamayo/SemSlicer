@@ -113,7 +113,6 @@ class Llama2Wrapper:
         for pipe, model in zip(self.pipeline, self.model):
             pipe.tokenizer.pad_token_id = model.config.eos_token_id
 
-
     @torch.no_grad()
     def chat_completion(
         self, dialogs, max_gen_len,
@@ -170,21 +169,20 @@ class Llama2Wrapper:
             dialog_input.append(prompt_tokens)
         if return_prob:
             raise("Not implemented yet")
-            assert calc_str is not None
-            input_ids = self.tokenizer.encode(
-                prompt_tokens[0] + " " + calc_str,
-                return_tensors="pt")
-            str_encoded = self.tokenizer.encode(
-                calc_str, return_tensors="pt")[0]
-            if self.use_cuda:
-                input_ids = input_ids.cuda(0)
-                str_encoded = str_encoded.cuda(0)
-            res = self.model(input_ids).logits[0][-1-len(str_encoded):-1]
-            res = torch.gather(torch.softmax(res, dim=-1), 1, str_encoded.unsqueeze(1))
-            res = torch.sum(torch.log(res)) / len(str_encoded)
-            return res.cpu().item()
+            # assert calc_str is not None
+            # input_ids = self.tokenizer.encode(
+            #     prompt_tokens[0] + " " + calc_str,
+            #     return_tensors="pt")
+            # str_encoded = self.tokenizer.encode(
+            #     calc_str, return_tensors="pt")[0]
+            # if self.use_cuda:
+            #     input_ids = input_ids.cuda(0)
+            #     str_encoded = str_encoded.cuda(0)
+            # res = self.model(input_ids).logits[0][-1-len(str_encoded):-1]
+            # res = torch.gather(torch.softmax(res, dim=-1), 1, str_encoded.unsqueeze(1))
+            # res = torch.sum(torch.log(res)) / len(str_encoded)
+            # return res.cpu().item()
         else:
-            # prompt_token_list = _divide_list_into_sublists(prompt_tokens, self.device_count)
             generated_results = []
             import time
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
@@ -202,7 +200,6 @@ class Llama2Wrapper:
                                 batch_size=batch_size,
                             )
                         )
-                        time.sleep(0.1)
                 for future in futures:
                     generated_results += future.result()
             for pipeline in self.pipeline:

@@ -6,27 +6,17 @@ from llama import Llama2Wrapper
 from utils.log import get_logger
 import spacy
 import nltk
-from nltk.stem import PorterStemmer
-from nltk.tokenize import word_tokenize
-import string
 from multi_rake import Rake
-from datasets import load_from_disk
-import random
 
 logger = get_logger("INFO", "slicing")
 generator = None
-# Please reply the question with a single word "No" or "Yes". If you are unsure, answer "Unsure" instead of "Yes" or "No".
+
 PROMPT = '''
 # Text
 {passage}
 
 # Question
 {question}'''
-# EXAMPLE_PASSAGE = "The pancake I bought was terrible. It was burnt and tasted like rubber. I will never buy food from that place again."
-
-# EXAMPLE_PROMPT = PROMPT.format(question="Does this text explicitly talks about nature topics?", passage=EXAMPLE_PASSAGE)
-
-# EXAMPLE_ANSWER = '''My answer is no, the text does not talks about nature topics. The text indicates that the speaker bought a pancake and it was terrible. The speaker will never buy food from that place again. It does not mention any nature topics.'''
 
 FIND_PROMPT = '''Strictly paraphrase the following question without changing the meaning of the question. \
 List 8 strict paraphrases below. Do not include additional information that the question does not mention in your answers. Be concise. \
@@ -38,6 +28,7 @@ Please first answer the question with "My answer is yes" \
 or "My answer is no", then explain your reason. Try your best.'''
 
 def init():
+    # load model
     model_size = "7b-chat"
     global generator
     try:
@@ -59,6 +50,8 @@ def init():
             load_4bit=True,
             batch_size=40
         )
+
+    # nltk initialization
     nltk.download("punkt")
 
 def _send_request(
@@ -69,7 +62,7 @@ def _send_request(
     batch_size=40
 ):
     '''
-    example for prompt:[{"role": "user", "content": "what is the recipe of mayonnaise?"}]
+    example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
     '''
     results = generator.chat_completion(
         dialogs,
@@ -81,9 +74,8 @@ def _send_request(
     return [result[0]['generated_text'].strip() for result in results]
 
 def _find_prompts(keyword, prompt_templates):
-    '''
-    find prompts for a keyword
-    '''
+    # find prompts for a keyword
+
     # parse to find pos (label)
     nlp = spacy.load("en_core_web_md")
     doc = nlp(keyword)
@@ -92,6 +84,7 @@ def _find_prompts(keyword, prompt_templates):
     logger.info("{keyword}: {label}".format(keyword=keyword, label=label))
     if label == "PROPN":
         label = "NOUN"
+
     # invalid label
     if label not in prompt_templates:
         logger.info(keyword, label)
@@ -109,23 +102,25 @@ def _find_prompts(keyword, prompt_templates):
         ]], 
         temperature=0.1
     )[0]
+
+
+    # clean results
     if results.find("I cannot") == 0:
         logger.info(results)
         return []
     logger.info(results)
-    # clean results
     results = results.split("\n")
     index_pattern = r'^\d+\.\s'
     results = [s for s in results if re.match(index_pattern, s)]
     remove_index_pattern = r'^\d+\.\s'
     results = [re.sub(remove_index_pattern, '', s) for s in results]
-    rake = Rake()
-    # ps = PorterStemmer()
 
+    # keyword extraction
+    rake = Rake()
     required_words = rake.apply(keyword)
     required_words = set(' '.join([word[0] for word in required_words]).split())
-    # keyword_no_punct = keyword.translate(str.maketrans('', '', string.punctuation))
-    # logger.info(required_words)
+
+    # similarity analysis
     from difflib import SequenceMatcher
     s = SequenceMatcher(None)
     logger.info("required_words: {required_words}".format(required_words=required_words))
@@ -140,13 +135,10 @@ def _find_prompts(keyword, prompt_templates):
                 if s.ratio() >= 0.5:
                     match_cnt += 1
                     break
-        # result_no_punct = result.translate(str.maketrans('', '', string.punctuation))
-        # contain_words = [ps.stem(word) for word in word_tokenize(result_no_punct)]
-        # logger.info("{result}, {contain_words}".format(result=result, contain_words=contain_words))
-        # count = len(set(required_words).intersection(set(contain_words)))
         if (match_cnt >= int(len(required_words) * 0.5) and match_cnt > 0) or int(len(required_words)) == 0 or required_words == set(['']):
             prompts.append(result)
 
+    # print prompts
     for index, prompt in enumerate(prompts):
         logger.info("{index}: {prompt}".format(index=index, prompt=prompt))
     prompt = [item for item in prompts]
@@ -159,71 +151,71 @@ def slicing(args):
     logger.info(args)
     logger.info(config)
     init()
+
     # load keyword file
     keywords = read_txt_file(config["SLICING"]["KEYWORDS_PATH"])
 
+    # load dataset
     df = read_csv_file(config["SLICING"]["DATASET_PATH"])
     logger.info("loaded dataset")
     logger.info(df.info())
+
     # random select data
     test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"])
 
-
     unsuccessful_keywords = []
     save_prompt_idx = 0
+
     # process keywords
     for key_idx, keyword in enumerate(keywords):
         logger.info("processing keyword: {keyword}".format(keyword=keyword))
 
-        # save prompt
+        # prompt dataframe
         prompt_df = pd.DataFrame()
+
         # get prompts
         prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
-        # continue
         if len(prompts) == 0:
             prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
             if len(prompts) == 0:
                 logger.info("no prompts found for {keyword}".format(keyword=keyword))
                 unsuccessful_keywords.append(keyword)
                 continue
-        # continue
         prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
+
         test_data["{}_result".format(keyword)] = 0.0
         for index, prompt in enumerate(prompts):
             logger.info("processing prompt: {prompt}".format(prompt=prompt.split("\n")[0]))
-            # get meta output data
+            # generate dialogs
             dialogs = [
                 [
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    # {"role": "user", "content": EXAMPLE_PROMPT},
-                    # {"role": "assistant", "content": EXAMPLE_ANSWER},
                     {"role": "user", "content": PROMPT.format(question=prompt, passage=row)}
                 ]
                 for row in test_data['text']
             ]
+
+            # generate results
             results = _send_request(dialogs, temperature=0.2)
-            for i, result in enumerate(results):
-                logger.info(result)
-                i += 1
-                if i == 3:
-                    break
-            # logger.info(results)
-            # test_data.add_column("{keyword}_prompt{id}_meta".format(keyword=keyword, id=index), results[i])
+            
+            # save raw data
             test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = "not implemented"
             i = 0
             for idx, row in test_data.iterrows():
                 test_data.at[idx, "{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = results[i]
                 i += 1
+            
+            # save classification result
             test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)].apply(
                 lambda x: 1 if x.lower().find("my answer is yes") != -1 and x.lower().find("my answer is no") == -1 else 0
             )
             test_data["{}_result".format(keyword)] += test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
-        # test_data["{}_result".format(keyword)] = test_data["{}_result".format(keyword)] / len(prompts)
+        
+        # save prompt to file
         prompt_df.to_csv(config["SLICING"]["PROMPT_PATH"] + "prompt_result_" + str(save_prompt_idx) + ".csv", index=False)
         save_prompt_idx += 1
+
     logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
-    # save as csv
+    # save as file
     logger.info(test_data.info())
     test_data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
-    # test_data.save_to_disk(config["SLICING"]["OUTPUT_PATH"])
-    # test_data.to_csv(config["SLICING"]["OUTPUT_PATH"] + ".csv", index=False)

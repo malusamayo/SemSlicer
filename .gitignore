@@ -1,12 +1,9 @@
 *__pycache__/
 slurm*
-result.csv
-output.txt
 hf-models-cache/
-*.csv
 *.so
 llama/
+data/
 result/
 slicing/
-slicing1/
-data/
+*.csv

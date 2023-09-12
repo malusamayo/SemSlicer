@@ -23,6 +23,7 @@ RUN:
   DATA_PATH: data/hotpot_qa.csv
   SAMPLE_SIZE: 1500
   OUTPUT_PATH: result/result
+  CSV_PATH: hotpotQA.csv
 
 LABEL:
   KEYWORDS_PATH: data/valid_keywords.txt
