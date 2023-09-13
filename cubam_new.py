@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class Cubam(nn.Module):
-    def __init__(self, text_num, classifier_num, sigma_z = 0.8):
+    def __init__(self, text_num, classifier_num):
         super().__init__()
         self.text_num = text_num
         self.classifier_num = classifier_num
@@ -10,7 +10,6 @@ class Cubam(nn.Module):
         self.sigma = nn.Parameter(torch.ones(classifier_num, requires_grad=True) / 2, requires_grad=True)
         self.x = nn.Parameter(torch.zeros(text_num, requires_grad=True), requires_grad=True)
         self.normal = torch.distributions.Normal(0, 1)
-        self.sigma_z = sigma_z
         self.activate = nn.Tanh()
     
     def forward(self, L):
