@@ -163,25 +163,12 @@ def slicing(args):
     # random select data
     test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"])
 
-    unsuccessful_keywords = []
-    save_prompt_idx = 0
-
     # process keywords
     for key_idx, keyword in enumerate(keywords):
         logger.info("processing keyword: {keyword}".format(keyword=keyword))
 
-        # prompt dataframe
-        prompt_df = pd.DataFrame()
-
-        # get prompts
-        prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
-        if len(prompts) == 0:
-            prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
-            if len(prompts) == 0:
-                logger.info("no prompts found for {keyword}".format(keyword=keyword))
-                unsuccessful_keywords.append(keyword)
-                continue
-        prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
+        prompt_df = pd.read_csv(config["SLICING"]["PROMPT_PATH"] + "prompt_result_" + str(key_idx) + ".csv")
+        prompts = prompt_df["{keyword}_prompt".format(keyword=keyword)].tolist()
 
         test_data["{}_result".format(keyword)] = 0.0
         for index, prompt in enumerate(prompts):
@@ -211,11 +198,9 @@ def slicing(args):
             )
             test_data["{}_result".format(keyword)] += test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
         
-        # save prompt to file
-        prompt_df.to_csv(config["SLICING"]["PROMPT_PATH"] + "prompt_result_" + str(save_prompt_idx) + ".csv", index=False)
-        save_prompt_idx += 1
+            ## save test data
+            test_data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
 
-    logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
     # save as file
     logger.info(test_data.info())
     test_data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
