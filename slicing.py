@@ -32,7 +32,7 @@ or "My answer is no", then explain your reason. Try your best.'''
 
 def slicing(args):
     # config
-    config = read_yaml_config("./config.yaml")
+    config = read_yaml_config("./config.yaml", args)
     logger.info(args)
     logger.info(config)
 

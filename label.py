@@ -21,7 +21,7 @@ PROMPT = '''
 
 def label(args):
     # read config
-    config = read_yaml_config("./config.yaml")
+    config = read_yaml_config("./config.yaml", args)
     logger.info(args)
     logger.info(config)
 

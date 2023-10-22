@@ -1,32 +1,31 @@
 SLICING:
-  KEYWORDS_PATH: data/keywords.txt
+  KEYWORDS_PATH: data/bbq-keywords.txt
   SAMPLE_SIZE: 300
-  OUTPUT_PATH: slicing/result.csv
-  PROMPT_PATH: slicing/
-  DATASET_PATH: hotpotQA.csv
+  OUTPUT_PATH: slice_result.csv
+  DATASET_PATH: data.csv
+  PROMPT_PATH: ''
   PROMPT_TEMPLATES: {
-    "NOUN": "Does this text have {keyword}?",
-    "ADJ": "Is this text {keyword}?",
-    "VERB": "Does the text {keyword}?",
-    "ADP": "Is the text {keyword}?"
+    "NOUN": "Does the text contain anything related to {keyword}?",
+    "ADJ": "Does the text contain anything related to {keyword}?",
+    "VERB": "Does the text contain anything related to {keyword}?",
+    "ADP": "Does the text contain anything related to {keyword}??"
   }
 
 DATA_PROCESS:
-  RESULT_PATH: slicing/result.csv
-  PROMPT_PATH: slicing/
-  KEYWORDS_PATH: data/keywords.txt
+  RESULT_PATH: slice_result.csv
+  PROMPT_PATH: ''
+  KEYWORDS_PATH: data/bbq-keywords.txt
   VALID_KEYWORDS_PATH: data/valid_keywords.txt
   PROMPT_NUM: 10
-  TMP_PATH: result/tmp.txt
+  TMP_PATH: tmp.txt
 
 RUN:
-  DATA_PATH: data/hotpot_qa.csv
   SAMPLE_SIZE: 1500
-  OUTPUT_PATH: result/result
-  CSV_PATH: hotpotQA.csv
+  OUTPUT_PATH: dataset
+  CSV_PATH: data.csv
 
 LABEL:
   KEYWORDS_PATH: data/valid_keywords.txt
-  PROMPT_PATH: slicing/
-  RESULT_PATH: hotpotQA.csv
-  OUTPUT_PATH: result/result1.csv
+  RESULT_PATH: data.csv
+  PROMPT_PATH: ''
+  OUTPUT_PATH: final_result.csv

@@ -117,7 +117,7 @@ def load_and_filter_dataset(task, cols, split):
 def run_model(args):
     # config
     global config
-    config = read_yaml_config("./config.yaml")
+    config = read_yaml_config("./config.yaml", args)
     logger.info(args)
     logger.info(config)
 

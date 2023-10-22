@@ -91,7 +91,7 @@ def _find_prompts(keyword, prompt_templates):
     return prompt
 
 def find_prompts(args):
-    config = read_yaml_config("./config.yaml")
+    config = read_yaml_config("./config.yaml", args)
     logger.info(args)
     logger.info(config)
 

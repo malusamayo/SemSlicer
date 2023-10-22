@@ -8,7 +8,7 @@ logger = get_logger("INFO", "prompt analysis")
 
 def prompt_analysis(args):
     # read config
-    config = read_yaml_config("./config.yaml")
+    config = read_yaml_config("./config.yaml", args)
     logger.info(args)
     logger.info(config)
 
