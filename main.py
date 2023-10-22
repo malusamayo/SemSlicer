@@ -11,6 +11,9 @@ def main():
     elif args.task == "prompt_analysis":
         from prompt_analysis import prompt_analysis
         prompt_analysis(args)
+    elif args.task == "find_prompts":
+        from prompt_finder import find_prompts
+        find_prompts(args)
     elif args.task == "label":
         from label import label
         label(args)
