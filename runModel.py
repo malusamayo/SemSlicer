@@ -1,19 +1,15 @@
 from llama import Llama2Wrapper
 from utils.load_config import read_yaml_config
 from utils.log import get_logger
-from datasets import load_dataset, load_from_disk
+from datasets import load_dataset, load_from_disk, concatenate_datasets
 import random
 import pandas as pd
+from llm_server import Generator
 
 logger = get_logger("INFO", "run model")
-generator = None
+generator = Generator("llama2", "13b-chat")
 
-SYSTEM_PROMPT='''You will receive several paragraphs with their title. The you will receive a question. Answer the question according to the paragraphs. Answer in the following format:
-
-# Answer
-your answer here
-
-Your answer shoud be a short phrase less than 10 words. You must not type anything except the answer phrase.'''
+SYSTEM_PROMPT=''''''
 
 # 1-shot example
 EXAMPLE_QUESTION='''What is the name of the first person to walk on the moon?'''
@@ -26,122 +22,114 @@ Aldrin joined him 19 minutes later, and they spent about two and a quarter hours
 Tranquility Base upon landing. Armstrong and Aldrin collected 47.5 pounds (21.5 kg) of lunar material to bring back to Earth \
 as pilot Michael Collins flew the Command Module Columbia in lunar orbit, and were on the Moon's surface for 21 hours, \
 36 minutes before lifting off to rejoin Columbia.''']
-                 
-def init():
-    # load model
-    model_size = "13b-chat"
-    global generator
-    try:
-        generator = Llama2Wrapper(
-            "/home/yiningho/workspace/datadisk/llama/llama-2-{}".format(model_size),
-            is_chat_model=True,
-            load_4bit=True,
-            batch_size=10
-        )
-    except:
-        logger.info(
-            "Loading from /home/yiningho/workspace/datadisk/llama/llama-2-{} failed. Using huggingface hub.".format(
-                model_size
-            )
-        )
-        generator = Llama2Wrapper(
-            "meta-llama/Llama-2-{}-hf".format(model_size),
-            is_chat_model=True,
-            load_4bit=True,
-            batch_size=10
-        )
 
-def _send_request(
-    dialogs,
-    max_gen_len=1024,
-    temperature=0.01,
-    top_p=0.9,
-    batch_size=40
-):
-    '''
-    example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
-    '''
-    results = generator.chat_completion(
-        dialogs,
-        max_gen_len=max_gen_len,
-        temperature=temperature,
-        top_p=top_p,
-        batch_size=batch_size
-    )
-    return [result[0]['generated_text'].strip() for result in results]
+def row_to_dialog(row):
+    return [
+        {
+            "role": "system", 
+            "content": SYSTEM_PROMPT
+        },
+        {
+            "role": "user", 
+            "content": '''
+# Context
+{context}
 
-def run_model(args):
-    # config
-    config = read_yaml_config("./config.yaml")
-    logger.info(args)
-    logger.info(config)
-    init()
+# Question
+{question} 
 
+Select the correct answer from the following options:
+1. {ans0}
+2. {ans1}
+3. {ans2}
+
+Reply only the answer phrase. Do not write anything else except the answer.
+# Answer
+'''.format(context=row["context"], question=row["question"], ans0=row["ans0"], ans1=row["ans1"], ans2=row["ans2"])
+        }
+    ]
+
+#     return [
+#         {
+#             "role": "system", 
+#             "content": SYSTEM_PROMPT
+#         },
+#         {
+#             "role": "user", 
+#             "content": '\n\n'.join(
+#                 [
+#                     "# Title\n{title}\n# Passage\n{passage}".format(
+#                         title=title,
+#                         passage=' '.join(sentences)
+#                     ) 
+#                     for title, sentences in zip(row["context"]["title"], row["context"]["sentences"])
+#                 ]
+#                 + [
+#                     '''# Question
+# {question} Answer in the following format:
+
+# Your answer shoud be a short phrase strictly less than 10 words. You must not type anything except the answer phrase.
+
+# # Answer
+# '''.format(question=row["question"])
+#                 ]
+#             )
+#         }
+#     ]
+
+def load_and_filter_dataset(task, cols, split):
     # load dataset
-    dataset = load_dataset("hotpot_qa", "distractor")['train']
+    datasets = []
+    for col in cols:
+        datasets.append(load_dataset(task, col)[split])
+    dataset = concatenate_datasets(datasets)
     logger.info("loaded dataset")
     logger.info(dataset.column_names)
     logger.info(len(dataset))
 
-    # filter dataset
-    dataset = dataset.filter(
-        lambda example: len(
-            ' '.join(
-                [
-                    ' '.join(sentences) 
-                    for sentences in example["context"]["sentences"]
-                ]
-                + [
-                    title
-                    for title in example["context"]["title"]
-                ]
-                + [example["question"]]
-                + [SYSTEM_PROMPT]
-            ).split()
-        ) < 650, 
-        with_indices=False
-    )
+    # # filter dataset
+    # dataset = dataset.filter(
+    #     lambda example: len(
+    #         ' '.join(
+    #             [
+    #                 ' '.join(sentences) 
+    #                 for sentences in example["context"]["sentences"]
+    #             ]
+    #             + [
+    #                 title
+    #                 for title in example["context"]["title"]
+    #             ]
+    #             + [example["question"]]
+    #             + [SYSTEM_PROMPT]
+    #         ).split()
+    #     ) < 450, 
+    #     with_indices=False
+    # )
+
     logger.info(len(dataset))
 
     # random sample dataset
-    dataset = dataset.shuffle(seed=random.randint(0, 1000)).select(range(config["RUN"]["SAMPLE_SIZE"]))
+    dataset = dataset.shuffle(seed=42).select(range(config["RUN"]["SAMPLE_SIZE"]))
+    logger.info(len(dataset))
+
+    return dataset
+
+def run_model(args):
+    # config
+    global config
+    config = read_yaml_config("./config.yaml")
+    logger.info(args)
+    logger.info(config)
+
+    dataset = load_and_filter_dataset("heegyu/bbq", ["Age", "Gender_identity"], 'test')
 
     # generate dialogs
-    dialogs = [
-        [
-            {
-                "role": "system", 
-                "content": SYSTEM_PROMPT
-            },
-            {
-                "role": "user", 
-                "content": '\n\n'.join(
-                    [
-                        "# Title\n{title}\n# Passage\n{passage}".format(
-                            title=title,
-                            passage=' '.join(sentences)
-                        ) 
-                        for title, sentences in zip(row["context"]["title"], row["context"]["sentences"])
-                    ]
-                    + [
-                        '''# Question
-{question} Answer in the following format:
-
-# Answer
-your answer here
-
-Your answer shoud be a short phrase strictly less than 10 words. You must not type anything except the answer phrase.'''.format(question=row["question"])
-                    ]
-                )
-            }
-        ]
-        for row in dataset
-    ]
+    dialogs = [ row_to_dialog(row) for row in dataset ]
     
     logger.info("generated dialogs")
 
     # generate results
-    results = _send_request(dialogs=dialogs, max_gen_len=1700, temperature=0.02, batch_size=10)
+    results = generator._send_request(dialogs=dialogs, max_gen_len=1700, temperature=0.02, batch_size=10)
     logger.info("generated results")
     
     # save results to datasets
@@ -152,7 +140,10 @@ Your answer shoud be a short phrase strictly less than 10 words. You must not ty
     dataset.save_to_disk(config["RUN"]["OUTPUT_PATH"])
 
     # save to csv
-    transform_data(config)
+    dataset.to_csv(config["RUN"]["CSV_PATH"])
+    # transform_data(config)
+
+
 
 def transform_data(config):
     # save to csv

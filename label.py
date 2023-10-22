@@ -2,9 +2,10 @@ from utils.log import get_logger
 from utils.file import read_txt_file, read_csv_file
 from utils.load_config import read_yaml_config
 from llama import Llama2Wrapper
+from llm_server import Generator
 
 logger = get_logger("INFO", "label")
-generator = None
+generator = Generator("flan-t5", "xxl")
 
 SYSTEM_PROMPT =  '''In each round of the conversation, you will receive a text and a question. \
 The question is about the text. Answer the question according to the text.
@@ -18,57 +19,12 @@ PROMPT = '''
 # Question
 {question}'''
 
-def init():
-    ''' init llama model '''
-    model_size = "7b-chat"
-    global generator
-    try:
-        generator = Llama2Wrapper(
-            "/home/yiningho/workspace/datadisk/llama/llama-2-{}".format(model_size),
-            is_chat_model=True,
-            load_4bit=True,
-            batch_size=40,
-        )
-    except:
-        logger.info(
-            "Loading from /home/yiningho/workspace/datadisk/llama/llama-2-{} failed. Using huggingface hub.".format(
-                model_size
-            )
-        )
-        generator = Llama2Wrapper(
-            "meta-llama/Llama-2-{}-hf".format(model_size),
-            is_chat_model=True,
-            load_4bit=True,
-            batch_size=40,
-        )
-
-def _send_request(
-    dialogs,
-    max_gen_len=1024,
-    temperature=0.01,
-    top_p=0.9,
-    batch_size=40
-):
-    '''
-    example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
-    '''
-    results = generator.chat_completion(
-        dialogs,
-        max_gen_len=max_gen_len,
-        temperature=temperature,
-        top_p=top_p,
-        batch_size=batch_size
-    )
-    return [result[0]['generated_text'].strip() for result in results]
-
 def label(args):
     # read config
     config = read_yaml_config("./config.yaml")
     logger.info(args)
     logger.info(config)
 
-    # init llama model
-    init()
 
     # read data
     df = read_csv_file(config["LABEL"]["RESULT_PATH"])
@@ -95,12 +51,12 @@ def label(args):
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": PROMPT.format(question=prompt, passage=passage)}
             ]
-            for passage in df['text']
+            for passage in df['context']
         ]
         logger.info("generated dialogs")
 
         # generate results
-        results = _send_request(dialogs, temperature=0.2)
+        results = generator._send_request(dialogs, temperature=0.2, batch_size=10)
         logger.info("generated results")
         
         # save results
