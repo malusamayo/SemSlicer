@@ -81,7 +81,11 @@ def load_and_filter_dataset(task, cols, split):
     # load dataset
     datasets = []
     for col in cols:
-        datasets.append(load_dataset(task, col)[split])
+        d = load_dataset(task, col)[split]
+        sample_size = int(config["RUN"]["SAMPLE_SIZE"] / len(cols))
+        d = d.shuffle(seed=42).select(range(sample_size))
+        datasets.append(d)
+        
     dataset = concatenate_datasets(datasets)
     logger.info("loaded dataset")
     logger.info(dataset.column_names)
@@ -109,7 +113,7 @@ def load_and_filter_dataset(task, cols, split):
     logger.info(len(dataset))
 
     # random sample dataset
-    dataset = dataset.shuffle(seed=42).select(range(config["RUN"]["SAMPLE_SIZE"]))
+    # dataset = dataset.shuffle(seed=42).select(range(config["RUN"]["SAMPLE_SIZE"]))
     logger.info(len(dataset))
 
     return dataset
@@ -121,7 +125,7 @@ def run_model(args):
     logger.info(args)
     logger.info(config)
 
-    dataset = load_and_filter_dataset("heegyu/bbq", ["Age", "Gender_identity"], 'test')
+    dataset = load_and_filter_dataset("heegyu/bbq", ["Age", "Gender_identity", "Disability_status", "Nationality", "Religion"], 'test')
 
     # generate dialogs
     dialogs = [ row_to_dialog(row) for row in dataset ]
