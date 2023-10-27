@@ -40,7 +40,7 @@ def prompt_analysis(args):
 
         # calculate prompt result
         df["{key}_result".format(key=key)] = 0
-        for i in range(config["DATA_PROCESS"]["PROMPT_NUM"]):
+        for i in range(len(prompt_df)):
             if "{key}_prompt{id}_meta".format(key=key, id=i) in column_names:
                 prompt_num += 1
                 df["{key}_result".format(key=key)] += df["{key}_prompt{id}".format(key=key, id=i)]
@@ -54,6 +54,7 @@ def prompt_analysis(args):
             L.append([])
             for prompt_id in range(prompt_num):
                 L[-1].append(1 if row["{key}_prompt{num}".format(key=key, num=prompt_id)] == 1 else 0)
+        # L = df[[f"{key}_prompt{prompt_id}"]].values
 
         # train network
         cubam = Cubam(len(df), prompt_num)
@@ -73,6 +74,9 @@ def prompt_analysis(args):
         prompt_df["tau"] = cubam.tau.data.tolist()
         prompt_df["sigma"] = [item + 0.05 for item in cubam.sigma.data.tolist()]
         prompt_df.to_csv(config["DATA_PROCESS"]["PROMPT_PATH"] + "prompt_final_result_" + str(index) + ".csv", index=False)
+
+        df[f"estimated_label_{key}"] = cubam.x.data.tolist()
+        df.to_csv(config["DATA_PROCESS"]["RESULT_PATH"] + '.cp.csv', index=False)
 
         # print result
         portions = []
