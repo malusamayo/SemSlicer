@@ -12,6 +12,7 @@ from llm_server import Generator
 
 logger = get_logger("INFO", "slicing")
 generator = Generator("flan-t5", "xxl")
+# generator = Generator("llama2", "13b-chat")
 
 PROMPT = '''
 # Text
@@ -45,7 +46,7 @@ def slicing(args):
     logger.info(df.info())
 
     # random select data
-    test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"])
+    test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
 
     # process keywords
     for key_idx, keyword in enumerate(keywords):
@@ -70,11 +71,7 @@ def slicing(args):
             results = generator._send_request(dialogs, temperature=0.2, batch_size=20)
             
             # save raw data
-            test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = "not implemented"
-            i = 0
-            for idx, row in test_data.iterrows():
-                test_data.at[idx, "{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = results[i]
-                i += 1
+            test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = [result for result in results]
             
             # save classification result
             test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)].apply(
