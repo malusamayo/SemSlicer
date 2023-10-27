@@ -10,12 +10,12 @@ def main():
     if args.task == "run_model":
         from runModel import run_model
         run_model(args)
-    elif args.task == "slicing":
-        from slicing import slicing
-        slicing(args)
     elif args.task == "find_prompts":
         from prompt_finder import find_prompts
         find_prompts(args)
+    elif args.task == "slicing":
+        from slicing import slicing
+        slicing(args)
     elif args.task == "prompt_analysis":
         from prompt_analysis import prompt_analysis
         prompt_analysis(args)

@@ -6,6 +6,7 @@ from llm_server import Generator
 
 logger = get_logger("INFO", "label")
 generator = Generator("flan-t5", "xxl")
+# generator = Generator("llama2", "13b-chat")
 
 SYSTEM_PROMPT =  '''In each round of the conversation, you will receive a text and a question. \
 The question is about the text. Answer the question according to the text.
@@ -60,11 +61,7 @@ def label(args):
         logger.info("generated results")
         
         # save results
-        df['label_{keyword}_meta'.format(keyword=keyword)] = "Nan"
-        i = 0
-        for idx, row in df.iterrows():
-            df.at[idx, 'label_{keyword}_meta'.format(keyword=keyword)] = results[i]
-            i += 1
+        df['label_{keyword}_meta'.format(keyword=keyword)] = [result for result in results]
         df['label_{keyword}'.format(keyword=keyword)] = df['label_{keyword}_meta'.format(keyword=keyword)].apply(
             lambda x: 1 if x.lower().find("my answer is yes") != -1 and x.lower().find("my answer is no") == -1 else 0
         )
