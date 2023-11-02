@@ -18,6 +18,10 @@ List 8 strict paraphrases below. Do not include additional information that the 
 Always include exactly the words "{keyword}" in your answers. Try your best not to change these words "{keyword}".'''
 
 
+EVAL_PROMPT = '''Are the following two questions asking the same thing? Answer yes or no.
+Question 1: {question1}
+Question 2: {question2}'''
+
 def _find_prompts(keyword, prompt_templates):
     # find prompts for a keyword
 
@@ -69,7 +73,7 @@ def _find_prompts(keyword, prompt_templates):
     from difflib import SequenceMatcher
     s = SequenceMatcher(None)
     logger.info("required_words: {required_words}".format(required_words=required_words))
-    prompts = []
+    prompts = [prompt]
     for result in results:
         contain_words = set(result.split(" "))
         match_cnt = 0
@@ -90,6 +94,18 @@ def _find_prompts(keyword, prompt_templates):
     logger.info("successfully found prompts for {keyword}".format(keyword=keyword))
     return prompt
 
+def _eval_prompts(prompts):
+    default_prompt = prompts[0]
+    prompts = prompts[1:]
+    results = generator._send_request(
+        [[
+            {"role": "system", "content": ""}, 
+            {"role": "user", "content": EVAL_PROMPT.format(question1=default_prompt, question2=prompt)}
+        ] for prompt in prompts], 
+        temperature=0.1
+    )
+    logger.info(results)
+
 def find_prompts(args):
     config = read_yaml_config("./config.yaml", args)
     logger.info(args)
@@ -105,14 +121,20 @@ def find_prompts(args):
         prompt_df = pd.DataFrame()
 
         # get prompts
-        prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
+        prompts = []
+        for _ in range(1):
+            prompts += _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
         if len(prompts) == 0:
             prompts = _find_prompts(keyword, config["SLICING"]["PROMPT_TEMPLATES"])
             if len(prompts) == 0:
                 logger.info("no prompts found for {keyword}".format(keyword=keyword))
                 unsuccessful_keywords.append(keyword)
                 continue
+
         prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
+        prompt_df = prompt_df.drop_duplicates()
+
+        # _eval_prompts(prompts)
         prompt_df.to_csv(config["SLICING"]["PROMPT_PATH"] + f"prompt_result_{key_idx}.csv", index=False)
 
     logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
