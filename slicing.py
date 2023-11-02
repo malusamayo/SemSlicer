@@ -22,7 +22,6 @@ PROMPT = '''
 {question} Your answer is yes or no.
 
 # Answer
-
 My answer is
 '''
 
@@ -68,14 +67,15 @@ def slicing(args):
             ]
 
             # generate results
-            results = generator._send_request(dialogs, temperature=0.2, batch_size=20)
+            results, probs = generator._send_request(dialogs, temperature=0.2, batch_size=20, return_probs=True, labels=['yes', 'no'])
+            print(results, probs)
             
             # save raw data
             test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = [result for result in results]
             
             # save classification result
             test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)].apply(
-                lambda x: 1 if x.lower().find("my answer is yes") != -1 and x.lower().find("my answer is no") == -1 else 0
+                lambda x: 1 if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else 0
             )
             test_data["{}_result".format(keyword)] += test_data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
         

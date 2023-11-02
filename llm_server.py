@@ -33,7 +33,9 @@ class Generator:
         max_gen_len=1024,
         temperature=0.01,
         top_p=0.9,
-        batch_size=40
+        batch_size=40,
+        return_probs=False,
+        labels=None
     ):
         '''
         example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
@@ -49,15 +51,16 @@ class Generator:
             )
             return [result[0]['generated_text'].strip() for result in results]
         if self.model_name == 'flan-t5':
-            results = self.generator.completion(
+            results, probs = self.generator.completion(
                 dialogs, 
                 max_gen_len=max_gen_len,
                 temperature=temperature,
                 top_p=top_p,
-                batch_size=batch_size
+                batch_size=batch_size,
+                return_prob=return_probs,
+                labels=labels
             )
-            print(results[0])
-            return ['My answer is ' + result['generated_text'].replace('<pad>', '').strip() for result in results]
+            return results, probs
 
         return results
 

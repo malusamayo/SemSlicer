@@ -3,6 +3,7 @@ import os.path as osp
 import torch
 import torch.cuda
 import torch.backends.cudnn
+import torch.nn.functional as F
 import argparse
 from transformers import (
     AutoTokenizer,
@@ -86,8 +87,20 @@ class FlanT5Wrapper:
                 batch_size=batch_size,
             ) for device, model in enumerate(self.model)
         ]
-        for pipe, model in zip(self.pipeline, self.model):
-            pipe.tokenizer.pad_token_id = model.config.eos_token_id
+
+    @torch.no_grad()
+    def complete_with_probs(self, input_text, batch_size, i, labels):
+        input_ids = self.tokenizer(input_text, return_tensors="pt", padding=True)
+        label_ids = self.tokenizer(labels, return_tensors="pt")["input_ids"].t()[0]
+
+        print(self.tokenizer.pad_token_id)
+        decoder_input_ids = torch.tensor([[self.tokenizer.pad_token_id]] * len(input_text)) 
+        logits = self.model[i](**input_ids, decoder_input_ids=decoder_input_ids)[0]
+        selected_logits = logits[:, :, label_ids].to(torch.float32)
+        probs = F.softmax(selected_logits, dim=2).squeeze()
+        tokens = torch.argmax(logits, dim=2)
+        outputs = self.tokenizer.batch_decode(tokens)
+        return outputs, probs
 
     @torch.no_grad()
     def completion(
@@ -96,6 +109,7 @@ class FlanT5Wrapper:
         return_prob=False,
         calc_str=None,
         batch_size=40,
+        labels=None,
     ) -> List[
         List[Dict[str, str]]
     ]:  
@@ -108,11 +122,26 @@ class FlanT5Wrapper:
                 prompt_tokens.append(dialog_tokens)
                 logger.debug(dialog_tokens)
             dialog_input.append(prompt_tokens)
-        if return_prob:
-            raise("Not implemented yet")
+        if return_prob and labels is not None:
+            generated_results = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
+                futures = []
+                for i in range(self.device_count):
+                    if len(dialog_input[i]) > 0:
+                        futures.append(
+                            executor.submit(
+                                self.complete_with_probs, 
+                                dialog_input[i],
+                                batch_size=batch_size,
+                                i=i,
+                                labels=labels,
+                            )
+                        )
+                for future in futures:
+                    generated_results += future.result()
+            return generated_results
         else:
             generated_results = []
-            import time
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
                 futures = []
                 for i in range(self.device_count):
