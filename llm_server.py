@@ -51,7 +51,7 @@ class Generator:
             )
             return [result[0]['generated_text'].strip() for result in results]
         if self.model_name == 'flan-t5':
-            results, probs = self.generator.completion(
+            results = self.generator.completion(
                 dialogs, 
                 max_gen_len=max_gen_len,
                 temperature=temperature,
@@ -60,7 +60,10 @@ class Generator:
                 return_prob=return_probs,
                 labels=labels
             )
-            return results, probs
+            if return_probs:
+                return results
+            else:
+                return [result['generated_text'].strip() for result in results]
 
         return results
 

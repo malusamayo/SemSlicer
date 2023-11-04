@@ -8,27 +8,39 @@ import spacy
 import en_core_web_sm
 import nltk
 from multi_rake import Rake
+import torch
 from llm_server import Generator
 
 logger = get_logger("INFO", "slicing")
 generator = Generator("flan-t5", "xxl")
 # generator = Generator("llama2", "13b-chat")
 
-PROMPT = '''
-# Text
+PROMPT = '''# Text
 {passage}
 
 # Question
 {question} Your answer is yes or no.
 
 # Answer
-My answer is
-'''
+My answer is '''
 
 SYSTEM_PROMPT = '''In each round of the conversation, you will receive a text and a question. \
 The question is about the text. Answer the question according to the text.
 Please first answer the question with "My answer is yes" \
 or "My answer is no", then explain your reason. Try your best.'''
+
+def select_few_shot_examples(dialogs, results, probs, nums):
+    num_per_class = int(nums / 2)
+    _, indices_a = torch.topk(probs[:, 0], num_per_class)
+    _, indices_b = torch.topk(probs[:, 1], num_per_class)
+
+    selected_idx = indices_a.tolist() + indices_b.tolist()
+    few_shot_examples = [dialogs[idx][1]["content"] + results[idx] + '.' for idx in selected_idx]
+    # few_shot_examples = few_shot_examples[::-1]
+    
+    few_shot_str = '\n\n'.join(few_shot_examples)
+    few_shot_str += '\n\n'
+    return few_shot_str
 
 def slicing(args):
     # config
@@ -57,6 +69,7 @@ def slicing(args):
         test_data["{}_result".format(keyword)] = 0.0
         for index, prompt in enumerate(prompts):
             logger.info("processing prompt: {prompt}".format(prompt=prompt.split("\n")[0]))
+            
             # generate dialogs
             dialogs = [
                 [
@@ -68,7 +81,21 @@ def slicing(args):
 
             # generate results
             results, probs = generator._send_request(dialogs, temperature=0.2, batch_size=20, return_probs=True, labels=['yes', 'no'])
-            print(results, probs)
+
+            # regenerate with few-shot examples
+            few_shot_str = select_few_shot_examples(dialogs, results, probs, 2)
+
+            # regenerate dialogs
+            dialogs = [
+                [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": few_shot_str + PROMPT.format(question=prompt, passage=row)}
+                ]
+                for row in test_data['context']
+            ]
+
+            # regenerate results
+            results = generator._send_request(dialogs, temperature=0.2, batch_size=20)
             
             # save raw data
             test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = [result for result in results]

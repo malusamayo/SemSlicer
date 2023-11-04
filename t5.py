@@ -124,6 +124,7 @@ class FlanT5Wrapper:
             dialog_input.append(prompt_tokens)
         if return_prob and labels is not None:
             generated_results = []
+            generated_probs = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
                 futures = []
                 for i in range(self.device_count):
@@ -138,8 +139,10 @@ class FlanT5Wrapper:
                             )
                         )
                 for future in futures:
-                    generated_results += future.result()
-            return generated_results
+                    results, probs = future.result()
+                    generated_results += results
+                    generated_probs.append(probs)
+            return generated_results, torch.cat(generated_probs, 0)
         else:
             generated_results = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
