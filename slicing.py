@@ -9,6 +9,7 @@ import en_core_web_sm
 import nltk
 from multi_rake import Rake
 import torch
+import random
 from llm_server import Generator
 
 logger = get_logger("INFO", "slicing")
@@ -34,7 +35,8 @@ def select_few_shot_examples(dialogs, results, probs, nums):
     _, indices_a = torch.topk(probs[:, 0], num_per_class)
     _, indices_b = torch.topk(probs[:, 1], num_per_class)
 
-    selected_idx = indices_a.tolist() + indices_b.tolist()
+    # selected_idx = indices_a.tolist() + indices_b.tolist()
+    selected_idx = [v for p in zip(indices_a.tolist(), indices_b.tolist()) for v in p] #interleave two lists
     few_shot_examples = [dialogs[idx][1]["content"] + results[idx] + '.' for idx in selected_idx]
     # few_shot_examples = few_shot_examples[::-1]
     
@@ -83,19 +85,20 @@ def slicing(args):
             results, probs = generator._send_request(dialogs, temperature=0.2, batch_size=20, return_probs=True, labels=['yes', 'no'])
 
             # regenerate with few-shot examples
-            few_shot_str = select_few_shot_examples(dialogs, results, probs, 2)
+            if config["SLICING"]["FEW_SHOT"]:
+                few_shot_str = select_few_shot_examples(dialogs, results, probs, 4)
 
-            # regenerate dialogs
-            dialogs = [
-                [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": few_shot_str + PROMPT.format(question=prompt, passage=row)}
+                # regenerate dialogs
+                dialogs = [
+                    [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": few_shot_str + PROMPT.format(question=prompt, passage=row)}
+                    ]
+                    for row in test_data['context']
                 ]
-                for row in test_data['context']
-            ]
 
-            # regenerate results
-            results = generator._send_request(dialogs, temperature=0.2, batch_size=20)
+                # regenerate results
+                results = generator._send_request(dialogs, temperature=0.2, batch_size=20)
             
             # save raw data
             test_data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = [result for result in results]
