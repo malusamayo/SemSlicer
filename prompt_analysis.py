@@ -46,6 +46,9 @@ def prompt_analysis(args):
                 df["{key}_result".format(key=key)] += df["{key}_prompt{id}".format(key=key, id=i)]
             else:
                 break
+        df["majority_vote_{key}".format(key=key)] = ((df["{key}_result".format(key=key)] / prompt_num) > 0.5).astype(int)
+        accs = [(df["{key}_prompt{id}".format(key=key, id=i)] == df["majority_vote_{key}".format(key=key)]).mean() for i in range(len(prompt_df))]
+        prompt_df["pseudo_acc"] = accs
         logger.info(prompt_num)
 
         # genearte input to network
@@ -75,8 +78,9 @@ def prompt_analysis(args):
         prompt_df["sigma"] = [item + 0.05 for item in cubam.sigma.data.tolist()]
         prompt_df.to_csv(config["DATA_PROCESS"]["PROMPT_PATH"] + "prompt_final_result_" + str(index) + ".csv", index=False)
 
-        df[f"estimated_label_{key}"] = cubam.x.data.tolist()
-        df.to_csv(config["DATA_PROCESS"]["RESULT_PATH"] + '.cp.csv', index=False)
+        # # estimated labels
+        # df[f"estimated_label_{key}"] = cubam.x.data.tolist()
+        # df.to_csv(config["DATA_PROCESS"]["RESULT_PATH"] + '.cp.csv', index=False)
 
         # print result
         portions = []

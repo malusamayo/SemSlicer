@@ -20,6 +20,18 @@ PROMPT = '''
 # Question
 {question}'''
 
+def select_prompt(prompt_df, keyword, criteria):
+    if criteria == 'min_noise':
+        prompt_df['sigma'] = prompt_df['sigma'].apply(lambda x: x if x > 0 else -x)
+        min_sigma_idx = prompt_df['sigma'].idxmin()
+        prompt = prompt_df.at[min_sigma_idx, '{keyword}_prompt'.format(keyword=keyword)]
+    elif criteria == 'default':
+        prompt = prompt_df.at[0, '{keyword}_prompt'.format(keyword=keyword)]
+    elif criteria == 'maj_vote':
+        max_acc_idx = prompt_df['pseudo_acc'].idxmax()
+        prompt = prompt_df.at[max_acc_idx, '{keyword}_prompt'.format(keyword=keyword)]
+    return prompt
+
 def label(args):
     # read config
     config = read_yaml_config("./config.yaml", args)
@@ -41,9 +53,7 @@ def label(args):
         prompt_df = read_csv_file(config["LABEL"]["PROMPT_PATH"] + "prompt_final_result_" + str(index) + ".csv")
 
         # select prompt
-        prompt_df['sigma'] = prompt_df['sigma'].apply(lambda x: x if x > 0 else -x)
-        min_sigma_idx = prompt_df['sigma'].idxmin()
-        prompt = prompt_df.at[min_sigma_idx, '{keyword}_prompt'.format(keyword=keyword)]
+        prompt = select_prompt(prompt_df, keyword, 'maj_vote')
         logger.info("prompt = {prompt}".format(prompt=prompt.split('\n')[0]))
 
         # generate dialogs
@@ -63,6 +73,6 @@ def label(args):
         # save results
         df['label_{keyword}_meta'.format(keyword=keyword)] = [result for result in results]
         df['label_{keyword}'.format(keyword=keyword)] = df['label_{keyword}_meta'.format(keyword=keyword)].apply(
-            lambda x: 1 if x.lower().find("my answer is yes") != -1 and x.lower().find("my answer is no") == -1 else 0
+            lambda x: 1 if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else 0
         )
         df.to_csv(config["LABEL"]["OUTPUT_PATH"], index=False)

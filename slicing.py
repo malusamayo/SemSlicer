@@ -86,6 +86,7 @@ def slicing(args):
 
             # regenerate with few-shot examples
             if config["SLICING"]["FEW_SHOT"]:
+                logger.info("generating few-shot examples")
                 few_shot_str = select_few_shot_examples(dialogs, results, probs, 4)
 
                 # regenerate dialogs
