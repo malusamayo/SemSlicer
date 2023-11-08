@@ -11,6 +11,36 @@ generator = Generator("llama2", "13b-chat")
 
 SYSTEM_PROMPT=''''''
 
+BBQ_PROMPT='''
+# Context
+{context}
+
+# Question
+{question} 
+
+Select the correct answer from the following options:
+1. {ans0}
+2. {ans1}
+3. {ans2}
+
+Reply only the answer phrase. Do not write anything else except the answer.
+# Answer
+'''
+
+MMLU_PROMPT='''
+# Question
+{question} 
+
+Select the correct answer from the following options:
+1. {ans0}
+2. {ans1}
+3. {ans2}
+4. {ans3}
+
+Reply only the answer phrase. Do not write anything else except the answer.
+# Answer
+'''
+
 # 1-shot example
 EXAMPLE_QUESTION='''What is the name of the first person to walk on the moon?'''
 EXAMPLE_ANSWER='''Neil Armstrong'''
@@ -31,21 +61,9 @@ def row_to_dialog(row):
         },
         {
             "role": "user", 
-            "content": '''
-# Context
-{context}
-
-# Question
-{question} 
-
-Select the correct answer from the following options:
-1. {ans0}
-2. {ans1}
-3. {ans2}
-
-Reply only the answer phrase. Do not write anything else except the answer.
-# Answer
-'''.format(context=row["context"], question=row["question"], ans0=row["ans0"], ans1=row["ans1"], ans2=row["ans2"])
+            # "content": BBQ_PROMPT.format(context=row["context"], question=row["question"], ans0=row["ans0"], ans1=row["ans1"], ans2=row["ans2"])
+            "content": MMLU_PROMPT.format(question=row["question"], ans0=row['choices'][0], 
+                ans1=row['choices'][1], ans2=row['choices'][2], ans3=row['choices'][3])
         }
     ]
 
@@ -79,14 +97,20 @@ Reply only the answer phrase. Do not write anything else except the answer.
 
 def load_and_filter_dataset(task, cols, split):
     # load dataset
-    datasets = []
-    for col in cols:
-        d = load_dataset(task, col)[split]
-        sample_size = int(config["RUN"]["SAMPLE_SIZE"] / len(cols))
-        d = d.shuffle(seed=42).select(range(sample_size))
-        datasets.append(d)
-        
-    dataset = concatenate_datasets(datasets)
+    if cols == []:
+        dataset = load_dataset(task)[split]
+        dataset = dataset.shuffle(seed=42).select(range(config["RUN"]["SAMPLE_SIZE"]))
+    else:
+        datasets = []
+        for col in cols:
+            d = load_dataset(task, col)[split]
+            # d = d.filter(lambda example: example['label'] != 0)
+            sample_size = int(config["RUN"]["SAMPLE_SIZE"] / len(cols))
+            d = d.shuffle(seed=42).select(range(sample_size))
+            datasets.append(d)
+        dataset = concatenate_datasets(datasets)
+
+
     logger.info("loaded dataset")
     logger.info(dataset.column_names)
     logger.info(len(dataset))
@@ -112,10 +136,6 @@ def load_and_filter_dataset(task, cols, split):
 
     logger.info(len(dataset))
 
-    # random sample dataset
-    # dataset = dataset.shuffle(seed=42).select(range(config["RUN"]["SAMPLE_SIZE"]))
-    logger.info(len(dataset))
-
     return dataset
 
 def run_model(args):
@@ -125,9 +145,12 @@ def run_model(args):
     logger.info(args)
     logger.info(config)
 
-    dataset = load_and_filter_dataset("heegyu/bbq", ["Age", "Gender_identity", "Disability_status", "Nationality", "Religion"], 'test')
+    # dataset = load_and_filter_dataset("heegyu/bbq", ["Age", "Gender_identity", "Disability_status", "Nationality", "Religion"], 'test')
+    # dataset = load_and_filter_dataset("tweet_eval", ['stance_abortion', 'stance_atheism', 'stance_climate', 'stance_feminist', 'stance_hillary'], 'train')
+    dataset = load_and_filter_dataset("cais/mmlu", ["high_school_biology", "high_school_chemistry", "high_school_psychology", "high_school_macroeconomics", "high_school_statistics"], 'test')
+    dataset = dataset.add_column("context", [row["question"] + ' ' + row["choices"][row["answer"]] for row in dataset])
 
-    # generate dialogs
+    # # generate dialogs
     dialogs = [ row_to_dialog(row) for row in dataset ]
     
     logger.info("generated dialogs")
