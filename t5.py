@@ -48,10 +48,6 @@ class FlanT5Wrapper:
         self.use_cuda = not self.no_cuda
         START_TIME = time.perf_counter()
         logger.info("Start loading {}...".format(model_name))
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            cache_dir="./hf-models-cache/"
-        )
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
         # device_map = {
         #     'model.shared': "nan",
@@ -70,7 +66,6 @@ class FlanT5Wrapper:
             self.model.append(
                 T5ForConditionalGeneration.from_pretrained(
                     model_name, 
-                    cache_dir="./hf-models-cache/", 
                     device_map=item, 
                     load_in_8bit=True
                 )
@@ -93,7 +88,6 @@ class FlanT5Wrapper:
         input_ids = self.tokenizer(input_text, return_tensors="pt", padding=True)
         label_ids = self.tokenizer(labels, return_tensors="pt")["input_ids"].t()[0]
 
-        print(self.tokenizer.pad_token_id)
         decoder_input_ids = torch.tensor([[self.tokenizer.pad_token_id]] * len(input_text)) 
         logits = self.model[i](**input_ids, decoder_input_ids=decoder_input_ids)[0]
         selected_logits = logits[:, :, label_ids].to(torch.float32)

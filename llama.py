@@ -63,8 +63,6 @@ class Llama2Wrapper:
             quantization_config = None
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name,
-            cache_dir="./hf-models-cache/",
-            use_auth_token="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",
         )
         device_map = {
             'model.embed_tokens': "nan", 
@@ -82,10 +80,8 @@ class Llama2Wrapper:
             self.model.append(
                 AutoModelForCausalLM.from_pretrained(
                     model_name,
-                    cache_dir="./hf-models-cache/",
                     device_map=device_map,
                     quantization_config=quantization_config,
-                    use_auth_token="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"
                 )
             )
             self.model[-1].eval()
