@@ -24,6 +24,7 @@ PROMPT_ANALYSIS:
   PROMPT_PATH: ''
   VALID_KEYWORDS_PATH: data/valid_keywords.txt
   TMP_PATH: tmp.txt
+  NOISE_ESTIMATE: false
 
 LABEL:
   RESULT_PATH: data.csv
