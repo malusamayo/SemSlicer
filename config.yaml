@@ -1,8 +1,15 @@
+EXPERIMENT:
+  KEYWORDS_PATH: data/mt-keywords-2.txt
+
+RUN:
+  SAMPLE_SIZE: 2000
+  OUTPUT_PATH: dataset
+  CSV_PATH: data.csv
+
 SLICING:
-  KEYWORDS_PATH: data/bbq-keywords.txt
   SAMPLE_SIZE: 300
-  OUTPUT_PATH: slice_result.csv
   DATASET_PATH: data.csv
+  OUTPUT_PATH: slice_result.csv
   PROMPT_PATH: ''
   PROMPT_TEMPLATES: {
     "NOUN": "Does the text contain anything related to {keyword}?",
@@ -10,22 +17,15 @@ SLICING:
     "VERB": "Does the text contain anything related to {keyword}?",
     "ADP": "Does the text contain anything related to {keyword}??"
   }
+  FEW_SHOT: false
 
-DATA_PROCESS:
+PROMPT_ANALYSIS:
   RESULT_PATH: slice_result.csv
   PROMPT_PATH: ''
-  KEYWORDS_PATH: data/bbq-keywords.txt
   VALID_KEYWORDS_PATH: data/valid_keywords.txt
-  PROMPT_NUM: 10
   TMP_PATH: tmp.txt
 
-RUN:
-  SAMPLE_SIZE: 1500
-  OUTPUT_PATH: dataset
-  CSV_PATH: data.csv
-
 LABEL:
-  KEYWORDS_PATH: data/valid_keywords.txt
   RESULT_PATH: data.csv
   PROMPT_PATH: ''
   OUTPUT_PATH: final_result.csv

@@ -46,7 +46,7 @@ def label(args):
     logger.info(df.info())
 
     # read keywords
-    keywords = read_txt_file(config["LABEL"]["KEYWORDS_PATH"])
+    keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
 
     # label
     for index, keyword in enumerate(keywords):

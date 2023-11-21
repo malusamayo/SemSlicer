@@ -13,12 +13,12 @@ def prompt_analysis(args):
     logger.info(config)
 
     # read data
-    df = read_csv_file(config["DATA_PROCESS"]["RESULT_PATH"])
+    df = read_csv_file(config["PROMPT_ANALYSIS"]["RESULT_PATH"])
     logger.info(df.info())
     column_names = df.columns.tolist()
     
     # read keywords
-    keywords = read_txt_file(config["DATA_PROCESS"]["KEYWORDS_PATH"])
+    keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
     valid_keywords = []
     index = -1
 
@@ -34,8 +34,8 @@ def prompt_analysis(args):
         valid_keywords.append(key)
 
         # read prompt result
-        prompt_df = read_csv_file(config["DATA_PROCESS"]["PROMPT_PATH"] + "prompt_result_" + str(index) + ".csv")
-        logger.info(config["DATA_PROCESS"]["PROMPT_PATH"] + "prompt_result_" + str(index) + ".csv")
+        prompt_df = read_csv_file(config["PROMPT_ANALYSIS"]["PROMPT_PATH"] + "prompt_result_" + str(index) + ".csv")
+        logger.info(config["PROMPT_ANALYSIS"]["PROMPT_PATH"] + "prompt_result_" + str(index) + ".csv")
         logger.info(prompt_df.info())
 
         # calculate prompt result
@@ -76,11 +76,11 @@ def prompt_analysis(args):
         # save result
         prompt_df["tau"] = cubam.tau.data.tolist()
         prompt_df["sigma"] = [item + 0.05 for item in cubam.sigma.data.tolist()]
-        prompt_df.to_csv(config["DATA_PROCESS"]["PROMPT_PATH"] + "prompt_final_result_" + str(index) + ".csv", index=False)
+        prompt_df.to_csv(config["PROMPT_ANALYSIS"]["PROMPT_PATH"] + "prompt_final_result_" + str(index) + ".csv", index=False)
 
         # # estimated labels
         # df[f"estimated_label_{key}"] = cubam.x.data.tolist()
-        # df.to_csv(config["DATA_PROCESS"]["RESULT_PATH"] + '.cp.csv', index=False)
+        # df.to_csv(config["PROMPT_ANALYSIS"]["RESULT_PATH"] + '.cp.csv', index=False)
 
         # print result
         portions = []
@@ -91,6 +91,6 @@ def prompt_analysis(args):
     
     # save to file
     logger.info("valid keywords: {valid_keywords}".format(valid_keywords=valid_keywords))
-    with open(config["DATA_PROCESS"]["VALID_KEYWORDS_PATH"], 'w') as f:
+    with open(config["PROMPT_ANALYSIS"]["VALID_KEYWORDS_PATH"], 'w') as f:
         for key in valid_keywords:
             f.write(key + "\n")

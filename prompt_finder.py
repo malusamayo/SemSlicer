@@ -111,7 +111,7 @@ def find_prompts(args):
     logger.info(args)
     logger.info(config)
 
-    keywords = read_txt_file(config["SLICING"]["KEYWORDS_PATH"])
+    keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
     unsuccessful_keywords = []
 
     for key_idx, keyword in enumerate(keywords):

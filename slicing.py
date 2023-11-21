@@ -51,7 +51,7 @@ def slicing(args):
     logger.info(config)
 
     # load keyword file
-    keywords = read_txt_file(config["SLICING"]["KEYWORDS_PATH"])
+    keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
 
     # load dataset
     df = read_csv_file(config["SLICING"]["DATASET_PATH"])
