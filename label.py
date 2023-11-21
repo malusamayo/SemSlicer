@@ -13,12 +13,14 @@ The question is about the text. Answer the question according to the text.
 Please first answer the question with "My answer is yes" \
 or "My answer is no", then explain your reason. Try your best.'''
 
-PROMPT = '''
-# Text
+PROMPT = '''# Text
 {passage}
 
 # Question
-{question}'''
+{question} Your answer is yes or no.
+
+# Answer
+My answer is '''
 
 def select_prompt(prompt_df, keyword, criteria):
     if criteria == 'min_noise':
