@@ -1,10 +1,9 @@
-from llama import Llama2Wrapper
-from utils.load_config import read_yaml_config
-from utils.log import get_logger
+from .utils.load_config import read_yaml_config
+from .utils.log import get_logger
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 import random
 import pandas as pd
-from llm_server import Generator
+from .model.llm_server import Generator
 
 logger = get_logger("INFO", "run model")
 generator = Generator("llama2", "13b-chat")
