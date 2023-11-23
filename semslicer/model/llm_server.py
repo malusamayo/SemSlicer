@@ -1,6 +1,6 @@
 from text_generation import Client
-from llama import Llama2Wrapper
-from t5 import FlanT5Wrapper
+from .llama import Llama2Wrapper
+from .t5 import FlanT5Wrapper
 from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
 
 

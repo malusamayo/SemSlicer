@@ -12,7 +12,7 @@ from transformers import (
 from typing import List, Dict
 import time
 import concurrent.futures
-from utils.log import get_logger
+from ..utils.log import get_logger
 
 logger = get_logger("INFO", "llama")
 
