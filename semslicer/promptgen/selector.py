@@ -63,14 +63,12 @@ class PromptSelector:
             prompt = prompt_df.at[max_acc_idx, '{keyword}_prompt'.format(keyword=keyword)]
         return prompt
 
-    def analyze(self):
+    def analyze(self, keywords):
         # read data
-        df = read_csv_file(config["PROMPT_ANALYSIS"]["RESULT_PATH"])
+        df = read_csv_file(config["EXPERIMENT"]["SLICE_RESULT_PATH"])
         logger.info(df.info())
         column_names = df.columns.tolist()
 
-        # read keywords
-        keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
         valid_keywords = []
         index = -1
 
@@ -86,8 +84,8 @@ class PromptSelector:
             valid_keywords.append(key)
 
             # read prompt result
-            prompt_df = read_csv_file(config["PROMPT_ANALYSIS"]["PROMPT_PATH"] + "prompt_result_" + str(index) + ".csv")
-            logger.info(config["PROMPT_ANALYSIS"]["PROMPT_PATH"] + "prompt_result_" + str(index) + ".csv")
+            prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=index))
+            logger.info(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=index))
             logger.info(prompt_df.info())
 
             # calculate prompt result
@@ -106,7 +104,7 @@ class PromptSelector:
                 prompt_df["tau"], prompt_df["sigma"] = self.noise_estimate(df, key, prompt_num)
             
             # save result
-            prompt_df.to_csv(config["PROMPT_ANALYSIS"]["PROMPT_PATH"] + "prompt_final_result_" + str(index) + ".csv", index=False)
+            prompt_df.to_csv(config["EXPERIMENT"]["FINAL_PROMPT_PATH"].format(key_idx=index), index=False)
 
             # # estimated labels
             # df[f"estimated_label_{key}"] = cubam.x.data.tolist()
@@ -121,20 +119,18 @@ class PromptSelector:
         
         # save to file
         logger.info("valid keywords: {valid_keywords}".format(valid_keywords=valid_keywords))
-        with open(config["PROMPT_ANALYSIS"]["VALID_KEYWORDS_PATH"], 'w') as f:
-            for key in valid_keywords:
-                f.write(key + "\n")
 
 if __name__ == "__main__":
-    selector = PromptSelector()
-    selector.analyze()
-
     keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
+    
+    selector = PromptSelector()
+    selector.analyze(keywords)
+
     for index, keyword in enumerate(keywords):
         logger.info("processing keyword: {key}".format(key=keyword))
         # read prompt
-        prompt_df = read_csv_file(config["LABEL"]["PROMPT_PATH"] + "prompt_final_result_" + str(index) + ".csv")
+        prompt_df = read_csv_file(config["EXPERIMENT"]["FINAL_PROMPT_PATH"].format(key_idx=index))
 
         # select prompt
-        prompt = select_prompt(prompt_df, keyword, 'maj_vote')
+        prompt = selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
         logger.info("prompt = {prompt}".format(prompt=prompt.split('\n')[0]))

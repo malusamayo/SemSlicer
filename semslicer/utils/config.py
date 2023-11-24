@@ -1,14 +1,29 @@
 import yaml
 import os
 
-def read_yaml_config(path, args, encoding="utf8"):
+
+
+def read_yaml_config(path, encoding="utf8"):
     with open(path, mode='r', encoding=encoding) as f:
         config = yaml.safe_load(f)
-    for stage, options in config.items():
-        for name, value in options.items():
-            if name in ["RESULT_PATH", "TMP_PATH", "OUTPUT_PATH", "CSV_PATH", "DATASET_PATH", "PROMPT_PATH"]:
-                config[stage][name] = os.path.join(result_path, config[stage][name])
     return config
 
-result_path = os.path.join("result", "testbed")
-config = read_yaml_config("./config.yaml", args=None)
+
+class Config:
+    def __init__(self, path):
+        self.config = read_yaml_config(path)
+
+    def __getitem__(self, key):
+        return self.config[key]
+
+    def __setitem__(self, key, value):
+        self.config[key] = value
+
+    def update_path(self, exp_name):
+        result_path = os.path.join("result", exp_name)
+        for stage, options in self.config.items():
+            for name, value in options.items():
+                if name in ["PROMPT_PATH", "SLICE_RESULT_PATH", "FINAL_PROMPT_PATH", "FINAL_RESULT_PATH"]:
+                    self.config[stage][name] = os.path.join(result_path, self.config[stage][name])
+
+config = Config("config.yaml")

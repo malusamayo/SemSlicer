@@ -1,5 +1,10 @@
 EXPERIMENT:
-  KEYWORDS_PATH: data/mt-keywords-2.txt
+  KEYWORDS_PATH: data/keywords/tmp-keywords.txt
+  DATA_PATH: data/data/tweets.csv
+  PROMPT_PATH: prompt_result_{key_idx}.csv
+  SLICE_RESULT_PATH: slice_result.csv
+  FINAL_PROMPT_PATH: prompt_final_result_{key_idx}.csv
+  FINAL_RESULT_PATH: final_result.csv
 
 RUN:
   SAMPLE_SIZE: 2000
@@ -8,25 +13,7 @@ RUN:
 
 SLICING:
   SAMPLE_SIZE: 300
-  DATASET_PATH: data.csv
-  OUTPUT_PATH: slice_result.csv
-  PROMPT_PATH: ''
-  PROMPT_TEMPLATES: {
-    "NOUN": "Does the text contain anything related to {keyword}?",
-    "ADJ": "Does the text contain anything related to {keyword}?",
-    "VERB": "Does the text contain anything related to {keyword}?",
-    "ADP": "Does the text contain anything related to {keyword}??"
-  }
   FEW_SHOT: false
 
 PROMPT_ANALYSIS:
-  RESULT_PATH: slice_result.csv
-  PROMPT_PATH: ''
-  VALID_KEYWORDS_PATH: data/valid_keywords.txt
-  TMP_PATH: tmp.txt
   NOISE_ESTIMATE: false
-
-LABEL:
-  RESULT_PATH: data.csv
-  PROMPT_PATH: ''
-  OUTPUT_PATH: final_result.csv

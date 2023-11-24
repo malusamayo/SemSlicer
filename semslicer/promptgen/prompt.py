@@ -12,8 +12,6 @@ from difflib import SequenceMatcher
 
 logger = get_logger("INFO", "prompt")
 
-
-
 class PromptGenerator:
 
     def __init__(self, model_name="llama2", model_size="13b-chat"):
@@ -117,7 +115,7 @@ class PromptGenerator:
 
             prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
             prompt_df = prompt_df.drop_duplicates()
-            prompt_df.to_csv(config["SLICING"]["PROMPT_PATH"] + f"prompt_result_{key_idx}.csv", index=False)
+            prompt_df.to_csv(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx), index=False)
 
         logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
 

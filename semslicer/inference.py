@@ -1,4 +1,4 @@
-from .utils.load_config import read_yaml_config
+from .utils.config import config
 from .utils.log import get_logger
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 import random
@@ -137,12 +137,7 @@ def load_and_filter_dataset(task, cols, split):
 
     return dataset
 
-def run_model(args):
-    # config
-    global config
-    config = read_yaml_config("./config.yaml", args)
-    logger.info(args)
-    logger.info(config)
+def run_model():
 
     # dataset = load_and_filter_dataset("heegyu/bbq", ["Age", "Gender_identity", "Disability_status", "Nationality", "Religion"], 'test')
     # dataset = load_and_filter_dataset("tweet_eval", ['stance_abortion', 'stance_atheism', 'stance_climate', 'stance_feminist', 'stance_hillary'], 'train')

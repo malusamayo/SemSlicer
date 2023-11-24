@@ -125,7 +125,7 @@ class Slicer(object):
             logger.info("processing keyword: {key}".format(key=keyword))
             
             if not prompt_existed:
-                prompt_df = read_csv_file(config["SLICING"]["PROMPT_PATH"] + "prompt_result_" + str(key_idx) + ".csv")
+                prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx))
                 prompts = prompt_df["{keyword}_prompt".format(keyword=keyword)].tolist()
 
                 data["{}_result".format(keyword)] = 0.0
@@ -139,15 +139,15 @@ class Slicer(object):
                     data["{}_result".format(keyword)] += data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
                 
                     ## save test data
-                    data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
+                    data.to_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"], index=False)
                 
                 logger.info(data.info())
-                data.to_csv(config["SLICING"]["OUTPUT_PATH"], index=False)
+                data.to_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"], index=False)
             else:
                 # read prompt
-                result_path = config["LABEL"]["PROMPT_PATH"] + "prompt_final_result_" + str(key_idx) + ".csv"
+                result_path = config["EXPERIMENT"]["FINAL_PROMPT_PATH"].format(key_idx=key_idx)
                 if not os.path.exists(result_path):
-                    self.prompt_selector.analyze()
+                    self.prompt_selector.analyze(keywords)
                 prompt_df = read_csv_file(result_path)
                 # select prompt
                 prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
@@ -156,12 +156,12 @@ class Slicer(object):
                 
                 data['label_{keyword}_meta'.format(keyword=keyword)] = meta_result
                 data['label_{keyword}'.format(keyword=keyword)] = binary_result
-                data.to_csv(config["LABEL"]["OUTPUT_PATH"], index=False)
+                data.to_csv(config["EXPERIMENT"]["FINAL_RESULT_PATH"], index=False)
             
 
 if __name__ == "__main__":
     # read data
-    df = read_csv_file(config["LABEL"]["RESULT_PATH"])
+    df = read_csv_file(config["EXPERIMENT"]["DATA_PATH"])
     logger.info(df.info())
 
     # read keywords
