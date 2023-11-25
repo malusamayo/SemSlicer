@@ -15,6 +15,7 @@ import time
 import concurrent.futures
 from ..utils.log import get_logger
 from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
+from .prob_pipeline import Text2TextGenerationPipelineWithProbs
 
 
 logger = get_logger("INFO", "t5")
@@ -83,18 +84,14 @@ class FlanT5Wrapper:
             ) for device, model in enumerate(self.model)
         ]
 
-    @torch.no_grad()
-    def complete_with_probs(self, input_text, batch_size, i, labels):
-        input_ids = self.tokenizer(input_text, return_tensors="pt", padding=True)
-        label_ids = self.tokenizer(labels, return_tensors="pt")["input_ids"].t()[0]
-
-        decoder_input_ids = torch.tensor([[self.tokenizer.pad_token_id]] * len(input_text)) 
-        logits = self.model[i](**input_ids, decoder_input_ids=decoder_input_ids)[0]
-        selected_logits = logits[:, :, label_ids].to(torch.float32)
-        probs = F.softmax(selected_logits, dim=2).squeeze()
-        tokens = torch.argmax(logits, dim=2)
-        outputs = self.tokenizer.batch_decode(tokens)
-        return outputs, probs
+        self.prob_pipeline = [
+            Text2TextGenerationPipelineWithProbs(
+                model=model,
+                tokenizer=self.tokenizer,
+                batch_size=batch_size,
+                label_space=['yes', 'no'], # TODO: customized label space
+            ) for device, model in enumerate(self.model)
+        ]
 
     @torch.no_grad()
     def completion(
@@ -116,42 +113,21 @@ class FlanT5Wrapper:
                 prompt_tokens.append(dialog_tokens)
                 logger.debug(dialog_tokens)
             dialog_input.append(prompt_tokens)
-        if return_prob and labels is not None:
-            generated_results = []
-            generated_probs = []
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
-                futures = []
-                for i in range(self.device_count):
-                    if len(dialog_input[i]) > 0:
-                        futures.append(
-                            executor.submit(
-                                self.complete_with_probs, 
-                                dialog_input[i],
-                                batch_size=batch_size,
-                                i=i,
-                                labels=labels,
-                            )
+        
+        generated_results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
+            futures = []
+            for i in range(self.device_count):
+                if len(dialog_input[i]) > 0:
+                    futures.append(
+                        executor.submit(
+                            self.prob_pipeline[i] if return_prob else self.pipeline[i],
+                            dialog_input[i],
+                            batch_size=batch_size,
                         )
-                for future in futures:
-                    results, probs = future.result()
-                    generated_results += results
-                    generated_probs.append(probs)
-            return generated_results, torch.cat(generated_probs, 0)
-        else:
-            generated_results = []
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.device_count) as executor:
-                futures = []
-                for i in range(self.device_count):
-                    if len(dialog_input[i]) > 0:
-                        futures.append(
-                            executor.submit(
-                                self.pipeline[i], 
-                                dialog_input[i],
-                                batch_size=batch_size,
-                            )
-                        )
-                for future in futures:
-                    generated_results += future.result()
-            for pipeline in self.pipeline:
-                pipeline.call_count=0
-            return generated_results
+                    )
+            for future in futures:
+                generated_results += future.result()
+        for pipeline in self.pipeline:
+            pipeline.call_count=0
+        return generated_results

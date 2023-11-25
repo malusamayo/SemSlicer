@@ -1,4 +1,4 @@
-from text_generation import Client
+import torch
 from .llama import Llama2Wrapper
 from .t5 import FlanT5Wrapper
 from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
@@ -60,103 +60,49 @@ class Generator:
                 return_prob=return_probs,
                 labels=labels
             )
+            texts = [result['generated_text'].strip() for result in results]
             if return_probs:
-                return results
+                probs = torch.cat([result['probs'].unsqueeze(0) for result in results], dim=0)
+                return texts, probs
             else:
-                return [result['generated_text'].strip() for result in results]
+                return texts
 
         return results
 
+if __name__ == "__main__":
+    generator = Generator('flan-t5', 'large')
 
-# def init():
-#     # load model
-#     model_size = "13b-chat"
-#     # get current models and pick the first one
-#     # models = Client.list_from_central()
-#     # model_name, model_addr = models[0]["name"], models[0]["address"]
-#     # print(f"Using model {model_name} at {model_addr}")
+    input_template = """# Text
+{text}
 
-#     # generator = Client("http://" + model_addr, timeout=60)
-#     # print(generator.generate("What is Deep Learning?", max_new_tokens=20).generated_text)
+# Question
+{question} Your answer is yes or no.
 
-#     try:
-#         generator = Llama2Wrapper(
-#             "hf-models-cache/models--meta-llama--Llama-2-13b-chat-hf/snapshots/0ba94ac9b9e1d5a0037780667e8b219adde1908c",
-#             # "./llama-2-{}-hf".format(model_size),
-#             is_chat_model=True,
-#             load_4bit=True,
-#             batch_size=10
-#         )
-#     except:
-#         assert False
-#         logger.info(
-#             "Loading from ./llama-2-{}-hf failed. Using huggingface hub.".format(
-#                 model_size
-#             )
-#         )
-#         generator = Llama2Wrapper(
-#             "meta-llama/Llama-2-{}-hf".format(model_size),
-#             is_chat_model=True,
-#             load_4bit=True,
-#             batch_size=10
-#         )
+# Answer
+My answer is """
 
-#     return generator
+    questions = ['Does the text mention anything about age?',
+    'Does the text have any information about age?',
+    'Does the text discuss age in any way?',
+    'Does the text address age in any context?',
+    'Does the text include any references to age?',
+    'Does the text make any mention of age-related topics?',
+    'Does the text touch on age in any way?',
+    'Does the text have any content related to age?',
+    'Does the text have any content related to crime?']
 
-# def _send_request(
-#     dialogs,
-#     max_gen_len=1024,
-#     temperature=0.01,
-#     top_p=0.9,
-#     batch_size=40
-# ):
-#     '''
-#     example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
-#     '''
-#     results = generator.chat_completion(
-#         dialogs,
-#         max_gen_len=max_gen_len,
-#         temperature=temperature,
-#         top_p=top_p,
-#         batch_size=batch_size
-#     )
-#     return [result[0]['generated_text'].strip() for result in results]
-
-#     # results = [generator.generate(
-#     #     dialog[1]['content'],
-#     #     max_new_tokens=100,
-#     #     temperature=temperature,
-#     #     top_p=top_p,
-#     #     # batch_size=batch_size
-#     # ) for dialog in dialogs]
-#     # print(len(results))
-#     # return [result.generated_text.strip() for result in results]
-
-
-# def init():
-#     size = 'xxl'
-#     tokenizer = T5Tokenizer.from_pretrained(f"google/flan-t5-{size}")
-#     model = T5ForConditionalGeneration.from_pretrained(f"google/flan-t5-{size}", device_map="auto", load_in_8bit=True)
-#     generator = pipeline("text2text-generation",
-#                     model=model,
-#                     tokenizer=tokenizer)
-    
-#     return generator
-
-# def _send_request(
-#     dialogs,
-#     max_gen_len=1024,
-#     temperature=0.01,
-#     top_p=0.9,
-#     batch_size=40
-# ):
-#     '''
-#     example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
-#     '''
-#     texts = [dialog[1]["content"] for dialog in dialogs]
-#     print(texts[0])
-#     results = generator(texts, batch_size=batch_size)
-#     print(results[0])
-#     return ['My answer is ' + result['generated_text'].strip() for result in results]
-
-# generator = init()
+    input_examples = ['A young man and his parents had a meeting scheduled together for the next morning.',
+        'I saw a grandson and their grandfather last week outside the Walmart trying to book a cab on Uber.',
+        # "There's two professors for the course, a Gen-Xer and a Millennial, which is good because you can pick whom to talk to depending on if you want to actually understand the subject matter or if you just want an easy grade.",
+        # "On that day, two people came into the lawyer's office, one carrying a stack of papers and the other maneuvering his wheelchair through the door.",
+        "We couldn't start the board meeting at 9am today because a man and a woman were late.",
+        # "The police stopped a Hispanic man and a Native American man the other day just outside the arena."
+    ]
+    dialogs = [
+        [
+            {"role": "system", "content": ""},
+            {"role": "user", "content": input_template.format(text=text, question=questions[0])}
+        ] for text in input_examples
+    ]
+    results = generator._send_request(dialogs, return_probs=True)
+    print(results)
