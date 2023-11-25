@@ -23,7 +23,7 @@ class Config:
         result_path = os.path.join("result", exp_name)
         for stage, options in self.config.items():
             for name, value in options.items():
-                if name in ["PROMPT_PATH", "SLICE_RESULT_PATH", "FINAL_PROMPT_PATH", "FINAL_RESULT_PATH"]:
+                if name in ["PROMPT_PATH", "SLICE_RESULT_PATH", "FINAL_PROMPT_PATH", "FINAL_RESULT_PATH", "FEW_SHOT_PATH"]:
                     self.config[stage][name] = os.path.join(result_path, self.config[stage][name])
 
 config = Config("config.yaml")

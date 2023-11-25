@@ -1,6 +1,7 @@
 EXPERIMENT:
-  KEYWORDS_PATH: data/keywords/tmp-keywords.txt
-  DATA_PATH: data/data/tweets.csv
+  KEYWORDS_PATH: data/keywords/bbq-keywords.txt
+  DATA_PATH: data/data/bbq.csv
+  FEW_SHOT_PATH: few_shot.csv
   PROMPT_PATH: prompt_result_{key_idx}.csv
   SLICE_RESULT_PATH: slice_result.csv
   FINAL_PROMPT_PATH: prompt_final_result_{key_idx}.csv
