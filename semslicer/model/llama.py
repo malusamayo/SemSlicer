@@ -117,6 +117,7 @@ class Llama2Wrapper:
         return_prob=False,
         calc_str=None,
         batch_size=40,
+        mimic_starting_response='',
     ) -> List[
         List[Dict[str, str]]
     ]:  
@@ -151,7 +152,7 @@ class Llama2Wrapper:
                         )
                     ]
                 )
-                dialog_tokens += f"{B_INST} {(dialog[-1]['content']).strip()} {E_INST}"
+                dialog_tokens += f"{B_INST} {(dialog[-1]['content']).strip()} {E_INST} {mimic_starting_response}"
                 assert all([msg["role"] == "user" for msg in dialog[::2]]) and all(
                     [msg["role"] == "assistant" for msg in dialog[1::2]]
                 ), (

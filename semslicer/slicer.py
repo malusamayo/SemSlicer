@@ -12,19 +12,24 @@ from .promptgen.selector import PromptSelector
 
 logger = get_logger("INFO", "label")
 
-SYSTEM_PROMPT =  '''In each round of the conversation, you will receive a text and a question. \
-The question is about the text. Answer the question according to the text.
-Please first answer the question with "My answer is yes" \
-or "My answer is no", then explain your reason. Try your best.'''
+# SYSTEM_PROMPT =  '''In each round of the conversation, you will receive a text and a question. \
+# The question is about the text. Answer the question according to the text.
+# Please first answer the question with "My answer is yes" \
+# or "My answer is no", then explain your reason. Try your best.'''
 
-PROMPT = '''# Text
-{passage}
+# PROMPT = '''# Text
+# {passage}
 
-# Question
-{question} Your answer is yes or no.
+# # Question
+# {question} Your answer is yes or no.
 
-# Answer
-My answer is '''
+# # Answer
+# My answer is '''
+
+
+SYSTEM_PROMPT =  '''{question} Answer ONLY yes or no. Do NOT explain your answer.'''
+PROMPT = '''Text: {passage}
+Answer: '''
 
 
 def select_usp_examples(dialogs, results, probs, nums):
@@ -58,8 +63,8 @@ def select_boundary_examples(dialogs, results, probs, nums):
 def to_dialog(data, prompt, few_shot_str=""):
     dialogs = [
         [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": few_shot_str + PROMPT.format(question=prompt, passage=passage)}
+            {"role": "system", "content": SYSTEM_PROMPT.format(question=prompt) + few_shot_str},
+            {"role": "user", "content": PROMPT.format(question=prompt, passage=passage)}
         ]
         for passage in data['context']
     ]

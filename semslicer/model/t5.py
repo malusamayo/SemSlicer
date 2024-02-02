@@ -110,7 +110,7 @@ class FlanT5Wrapper:
         for dialogs in divided_dialogs:
             prompt_tokens = []
             for dialog in dialogs:
-                dialog_tokens = dialog[1]["content"]
+                dialog_tokens = dialog[0]["content"] + '\n' + dialog[1]["content"]
                 prompt_tokens.append(dialog_tokens)
                 logger.debug(dialog_tokens)
             dialog_input.append(prompt_tokens)

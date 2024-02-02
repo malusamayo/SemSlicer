@@ -35,7 +35,8 @@ class Generator:
         top_p=0.9,
         batch_size=40,
         return_probs=False,
-        labels=None
+        labels=None,
+        mimic_starting_response='',
     ):
         '''
         example for dialogs:[[{"role": "user", "content": "what is the recipe of mayonnaise?"}]]
@@ -47,7 +48,8 @@ class Generator:
                 max_gen_len=max_gen_len,
                 temperature=temperature,
                 top_p=top_p,
-                batch_size=batch_size
+                batch_size=batch_size,
+                mimic_starting_response=mimic_starting_response
             )
             return [result[0]['generated_text'].strip() for result in results]
         if self.model_name == 'flan-t5':
