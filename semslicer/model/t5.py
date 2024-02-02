@@ -50,6 +50,7 @@ class FlanT5Wrapper:
         START_TIME = time.perf_counter()
         logger.info("Start loading {}...".format(model_name))
         self.tokenizer = T5Tokenizer.from_pretrained(model_name)
+        self.tokenizer.model_max_length=4096
         # device_map = {
         #     'model.shared': "nan",
         #     'model.encoder': "nan", 
