@@ -149,6 +149,10 @@ class Slicer(object):
 
         for key_idx, keyword in enumerate(keywords):
             logger.info("processing keyword: {key}".format(key=keyword))
+
+            few_shot_str = ""
+            if add_few_shot:
+                few_shot_str = few_shot_str_df.at[0, keyword]
             
             if not prompt_existed:
                 prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx))
@@ -158,7 +162,7 @@ class Slicer(object):
                 for index, prompt in enumerate(prompts):
                     logger.info("processing prompt: {prompt}".format(prompt=prompt.split("\n")[0]))
                     
-                    meta_result, binary_result = self.annotate(data, prompt)
+                    meta_result, binary_result = self.annotate(data, prompt, few_shot_str=few_shot_str)
 
                     data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = meta_result
                     data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = binary_result
@@ -178,9 +182,6 @@ class Slicer(object):
                 # select prompt
                 prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
                 
-                few_shot_str = ""
-                if add_few_shot:
-                    few_shot_str = few_shot_str_df.at[0, keyword]
                 meta_result, binary_result = self.annotate(data, prompt, few_shot_str=few_shot_str)
                 
                 data['label_{keyword}_meta'.format(keyword=keyword)] = meta_result
