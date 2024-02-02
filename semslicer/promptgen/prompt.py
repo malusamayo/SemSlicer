@@ -1,6 +1,7 @@
 from ..utils.file import read_txt_file, read_csv_file
 import pandas as pd
 import re
+import os
 from ..utils.log import get_logger
 import spacy
 import en_core_web_sm
@@ -119,8 +120,44 @@ class PromptGenerator:
 
         logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
 
+class PromptGenerator:
+
+    def __init__(self, model_name="llama2", model_size="13b-chat", num_prompts=8):
+        self.generator = Paraphraser(model_name, model_size)
+        self.validate_flag = False
+        self.num_prompts = num_prompts
+
+    def find_prompts_list(self, keyword_list):
+        '''
+        find prompts for a list of keywords
+        '''
+        for key_idx, keyword in enumerate(keyword_list):
+            # prompt dataframe
+            prompt_df = pd.DataFrame()
+
+            prompts = self.generator.generate_prompts([keyword] * self.num_prompts)
+
+            # deduplicate
+            prompts = list(set(prompts))
+
+            prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
+            prompt_df = prompt_df.drop_duplicates()
+            prompt_df.to_csv(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx), index=False)
 
 
 if __name__ == '__main__':
+    result_path = os.path.join("result", 'testbed')
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+    config.update_path('testbed')
+
     promptGen = PromptGenerator()
-    promptGen.find_prompts_list(["negation", "sarcasm"])
+    test_keywords = [
+        "pronouns",
+        "incorrect grammar",
+        "malicious intent",
+        "text with user instructions",
+        "sarcasm"
+    ]
+    promptGen.find_prompts_list(test_keywords)
+    # promptGen.find_prompts_list(["negation", "sarcasm"])
