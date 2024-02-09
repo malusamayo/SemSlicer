@@ -28,8 +28,6 @@ def main():
     elif args.task == "slicing":
         slicer = Slicer()
         test_data = data.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
-        if config["SLICING"]["FEW_SHOT"]:
-            slicer.generate_few_shot_example_batch(test_data, keywords, method="usp")
         slicer.annotate_batch(test_data, keywords, prompt_existed=False, add_few_shot=config["SLICING"]["FEW_SHOT"])
     elif args.task == "label":
         slicer = Slicer()

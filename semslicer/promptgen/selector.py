@@ -6,6 +6,27 @@ import torch
 
 logger = get_logger("INFO", "prompt analysis")
 
+def select_usp_examples(dialogs, results, probs, nums):
+    num_per_class = int(nums / 2)
+    _, indices_a = torch.topk(probs[:, 0], num_per_class)
+    _, indices_b = torch.topk(probs[:, 1], num_per_class)
+
+    # selected_idx = indices_a.tolist() + indices_b.tolist()
+    selected_idx = [v for p in zip(indices_a.tolist(), indices_b.tolist()) for v in p] #interleave two lists
+    return [dialogs[idx] for idx in selected_idx], [results[idx] for idx in selected_idx]
+
+def select_boundary_examples(dialogs, probs, nums):
+
+    max_probs = torch.maximum(probs[:, 0], probs[:, 1])
+    _, selected_idx = torch.topk(-max_probs, nums)
+
+    # logger.info(max_probs[selected_idx])
+    return [dialogs[idx] for idx in selected_idx]
+
+def select_random_examples(dialogs, nums):
+    selected_idx = torch.randperm(len(dialogs))[:nums]
+    return [dialogs[idx] for idx in selected_idx]
+
 class PromptSelector:
 
     def __init__(self, ):

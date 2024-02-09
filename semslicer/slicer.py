@@ -6,9 +6,9 @@ from .utils.log import get_logger
 from .utils.file import read_txt_file, read_csv_file
 from .utils.config import config
 from .model.llm_server import Generator
+from .model.teacher import TeacherModel
 from .promptgen.prompt import PromptGenerator
-from .promptgen.selector import PromptSelector
-
+from .promptgen.selector import PromptSelector, select_usp_examples, select_boundary_examples, select_random_examples
 
 logger = get_logger("INFO", "label")
 
@@ -32,33 +32,11 @@ PROMPT = '''Text: {passage}
 Answer: '''
 
 
-def select_usp_examples(dialogs, results, probs, nums):
-    num_per_class = int(nums / 2)
-    _, indices_a = torch.topk(probs[:, 0], num_per_class)
-    _, indices_b = torch.topk(probs[:, 1], num_per_class)
-
-    # selected_idx = indices_a.tolist() + indices_b.tolist()
-    selected_idx = [v for p in zip(indices_a.tolist(), indices_b.tolist()) for v in p] #interleave two lists
-    few_shot_examples = [dialogs[idx][1]["content"] + results[idx] + '.' for idx in selected_idx]
-    # few_shot_examples = few_shot_examples[::-1]
-    
+def to_few_shot_str(dialogs, results):
+    few_shot_examples = [dialog[1]["content"] + result for dialog, result in zip(dialogs, results)]
     few_shot_str = '\n\n'.join(few_shot_examples)
     few_shot_str += '\n\n'
     return few_shot_str
-
-def select_boundary_examples(dialogs, results, probs, nums):
-
-    max_probs = torch.maximum(probs[:, 0], probs[:, 1])
-    _, selected_idx = torch.topk(-max_probs, nums)
-
-    logger.info(max_probs[selected_idx])
-    few_shot_examples = [dialogs[idx][1]["content"] + '<to-be-filled>.' for idx in selected_idx]
-    # few_shot_examples = few_shot_examples[::-1]
-    
-    few_shot_str = '\n\n'.join(few_shot_examples)
-    few_shot_str += '\n\n'
-    return few_shot_str
-
 
 def to_dialog(data, prompt, few_shot_str=""):
     dialogs = [
@@ -73,9 +51,9 @@ def to_dialog(data, prompt, few_shot_str=""):
 class Slicer(object):
 
     def __init__(self, model_name="flan-t5", model_size="xxl"):
-        self.generator = Generator(model_name, model_size)
+        # self.generator = Generator(model_name, model_size)
         self.prompt_selector = PromptSelector()
-
+        self.teacher = TeacherModel()
 
     def annotate(self, data, prompt, return_probs=False, few_shot_str=""):
         """Annotate data."""
@@ -99,16 +77,27 @@ class Slicer(object):
 
             return meta_result, binary_result
 
-    def generate_few_shot_example(self, data, prompt, method="usp"):
-        # generate results
-        results, probs = self.annotate(data, prompt, return_probs=True)
+    def generate_few_shot_example(self, data, prompt, method="usp", num=4):
+        """Generate few-shot examples."""
 
         logger.info("generating few-shot examples with {method}: {prompt}".format(prompt=prompt, method=method))
+        
         dialogs = to_dialog(data, prompt)
-        if method == "usp":
-            few_shot_str = select_usp_examples(dialogs, results, probs, 4)
-        elif method == "active_learning":
-            few_shot_str = select_boundary_examples(dialogs, results, probs, 4)
+
+        if method == "random":
+            selected_dialogs = select_random_examples(dialogs, num)
+            selected_results = self.teacher.label(selected_dialogs)
+        else:
+            # generate results from the student model
+            results, probs = self.annotate(data, prompt, return_probs=True)
+            if method == "usp":
+                selected_dialogs, selected_results = select_usp_examples(dialogs, results, probs, num)
+            elif method == "active_learning":
+                selected_dialogs = select_boundary_examples(dialogs, probs, num)
+                selected_results = self.teacher.label(selected_dialogs)
+        
+        few_shot_str = to_few_shot_str(selected_dialogs, selected_results)
+        
         logger.info(few_shot_str)
 
         return few_shot_str
@@ -119,13 +108,20 @@ class Slicer(object):
             logger.info("processing keyword: {key}".format(key=keyword))
 
             # read prompt
+            slice_path = config["EXPERIMENT"]["SLICE_RESULT_PATH"]
             result_path = config["EXPERIMENT"]["FINAL_PROMPT_PATH"].format(key_idx=key_idx)
-            if not os.path.exists(result_path):
-                self.prompt_selector.analyze(keywords)
-            prompt_df = read_csv_file(result_path)
+            
+            if os.path.exists(slice_path):
+                if not os.path.exists(result_path):
+                    self.prompt_selector.analyze(keywords)
+                prompt_df = read_csv_file(result_path)
+                prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
+            else:
+                # if final prompts are not generated, use the default prompt
+                prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx))
+                prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='default')
 
             # select prompt
-            prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
             few_shot_str = self.generate_few_shot_example(data, prompt, method=method)
             few_shot_str_df.at[0, keyword] = few_shot_str
         few_shot_str_df.to_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
@@ -145,6 +141,8 @@ class Slicer(object):
         """
         
         if add_few_shot:
+            if not os.path.exists(config["EXPERIMENT"]["FEW_SHOT_PATH"]):
+                self.generate_few_shot_example_batch(data, keywords, method="random")
             few_shot_str_df = pd.read_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"])
 
         for key_idx, keyword in enumerate(keywords):
