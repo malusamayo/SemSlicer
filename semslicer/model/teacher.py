@@ -1,7 +1,7 @@
 from openai import OpenAI
 
 class TeacherModel:
-    def __init__(self, model_name="gpt-3.5-turbo"):
+    def __init__(self, model_name="gpt-4-turbo-preview"):
         self.model = OpenAI().chat.completions
         self.model_name = model_name
 

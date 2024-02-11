@@ -74,14 +74,8 @@ class Generator:
 if __name__ == "__main__":
     generator = Generator('flan-t5', 'large')
 
-    input_template = """# Text
-{text}
-
-# Question
-{question} Your answer is yes or no.
-
-# Answer
-My answer is """
+    input_template = """Text: {text}
+Answer:"""
 
     questions = ['Does the text mention anything about age?',
     'Does the text have any information about age?',
@@ -102,8 +96,8 @@ My answer is """
     ]
     dialogs = [
         [
-            {"role": "system", "content": ""},
-            {"role": "user", "content": input_template.format(text=text, question=questions[0])}
+            {"role": "system", "content": f"{questions[0]} Answer ONLY yes or no. Do NOT explain your answer."},
+            {"role": "user", "content": input_template.format(text=text)}
         ] for text in input_examples
     ]
     results = generator._send_request(dialogs, return_probs=True)
