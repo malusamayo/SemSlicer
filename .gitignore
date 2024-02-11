@@ -1,9 +1,7 @@
 *__pycache__/
 slurm*
-hf-models-cache/
 *.so
-llama/
 data/
 result/
-slicing/
+scripts/
 *.csv
