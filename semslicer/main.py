@@ -26,9 +26,10 @@ def main():
         promptGen = PromptGenerator()
         promptGen.find_prompts_list(keywords)
     elif args.task == "slicing":
-        slicer = Slicer()
+        # slicer = Slicer(model_name="llama2", model_size="13b-chat")
+        slicer = Slicer(model_name="flan-t5", model_size="xxl")
         test_data = data.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
-        slicer.annotate_batch(test_data, keywords, prompt_existed=False, add_few_shot=config["SLICING"]["FEW_SHOT"])
+        slicer.annotate_batch(test_data, keywords, use_calibrate=config["SLICING"]["CALIBRATE"], add_few_shot=config["SLICING"]["FEW_SHOT"])
     elif args.task == "label":
         slicer = Slicer()
         slicer.annotate_batch(data, keywords, prompt_existed=True)

@@ -1,6 +1,7 @@
 import os
 import torch
 import pandas as pd
+from typing import List, Dict
 from .utils.parseArgument import parseArg
 from .utils.log import get_logger
 from .utils.file import read_txt_file, read_csv_file
@@ -51,11 +52,38 @@ def to_dialog(data, prompt, few_shot_str=""):
 class Slicer(object):
 
     def __init__(self, model_name="flan-t5", model_size="xxl"):
-        # self.generator = Generator(model_name, model_size)
+        self.generator = Generator(model_name, model_size)
         self.prompt_selector = PromptSelector()
         self.teacher = TeacherModel()
 
-    def annotate(self, data, prompt, return_probs=False, few_shot_str=""):
+    def calibrate_prob(self, prompt: str, probs: torch.Tensor, labels: List[str], few_shot_str: str=""):
+        """Calibrate the probability."""
+        
+        logger.info("calibrating probability")
+        dialogs = [
+            [
+                {"role": "system", "content": SYSTEM_PROMPT.format(question=prompt) + few_shot_str},
+                {"role": "user", "content": PROMPT.format(question=prompt, passage="")}
+            ]
+        ]
+        _, base_probs = self.generator._send_request(dialogs, batch_size=1, return_probs=True, labels=labels)
+        logger.info("base_probs = {base_probs}".format(base_probs=base_probs))
+
+        # calibrate the probability for n*2 tensor
+        calibrated_probs = probs / base_probs
+        results = [labels[prob.argmax()] for prob in calibrated_probs]
+        return results, calibrated_probs
+
+    def annotate(
+        self, 
+        data: pd.DataFrame, 
+        prompt: str, 
+        return_probs: bool=False, 
+        use_calibrate: bool=False, 
+        few_shot_str: str="",
+        labels: List[str] = ["yes", "no"],
+        label_map: Dict[str, int] = {"yes": 1, "no": 0}
+    ):
         """Annotate data."""
         logger.info("prompt = {prompt}".format(prompt=prompt))
         logger.info("few_shot_str = {few_shot_str}".format(few_shot_str=few_shot_str))
@@ -64,20 +92,22 @@ class Slicer(object):
         dialogs = to_dialog(data, prompt, few_shot_str=few_shot_str)
         logger.info("generated dialogs")
 
+        probs = None
         # generate results
         if return_probs:
             results, probs = self.generator._send_request(dialogs, batch_size=10, return_probs=True)
-            return results, probs
+            if use_calibrate:
+                meta_result, probs = self.calibrate_prob(prompt, probs, labels, few_shot_str=few_shot_str)
         else:
             results = self.generator._send_request(dialogs, batch_size=10)
-            logger.info("generated results")
-            
             meta_result = [result for result in results]
-            binary_result = [1 if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else 0 for x in meta_result]
+        
+        logger.info("generated results")
+        
+        binary_result = [label_map['yes'] if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else label_map['no'] for x in meta_result]
+        return meta_result, binary_result, probs
 
-            return meta_result, binary_result
-
-    def generate_few_shot_example(self, data, prompt, method="usp", num=4):
+    def generate_few_shot_example(self, data, prompt, method="usp", num=8):
         """Generate few-shot examples."""
 
         logger.info("generating few-shot examples with {method}: {prompt}".format(prompt=prompt, method=method))
@@ -89,7 +119,7 @@ class Slicer(object):
             selected_results = self.teacher.label(selected_dialogs)
         else:
             # generate results from the student model
-            results, probs = self.annotate(data, prompt, return_probs=True)
+            results, _, probs = self.annotate(data, prompt, return_probs=True)
             if method == "usp":
                 selected_dialogs, selected_results = select_usp_examples(dialogs, results, probs, num)
             elif method == "active_learning":
@@ -126,7 +156,7 @@ class Slicer(object):
             few_shot_str_df.at[0, keyword] = few_shot_str
         few_shot_str_df.to_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
 
-    def annotate_batch(self, data, keywords, prompt_existed=False, add_few_shot=False):
+    def annotate_batch(self, data, keywords, prompt_existed=False, use_calibrate=False, add_few_shot=False):
         """Annotate data in batch.
         
         Parameters
@@ -160,7 +190,7 @@ class Slicer(object):
                 for index, prompt in enumerate(prompts):
                     logger.info("processing prompt: {prompt}".format(prompt=prompt.split("\n")[0]))
                     
-                    meta_result, binary_result = self.annotate(data, prompt, few_shot_str=few_shot_str)
+                    meta_result, binary_result, _ = self.annotate(data, prompt, return_probs=use_calibrate, use_calibrate=use_calibrate, few_shot_str=few_shot_str)
 
                     data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = meta_result
                     data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = binary_result
@@ -180,7 +210,7 @@ class Slicer(object):
                 # select prompt
                 prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
                 
-                meta_result, binary_result = self.annotate(data, prompt, few_shot_str=few_shot_str)
+                meta_result, binary_result, _ = self.annotate(data, prompt, few_shot_str=few_shot_str)
                 
                 data['label_{keyword}_meta'.format(keyword=keyword)] = meta_result
                 data['label_{keyword}'.format(keyword=keyword)] = binary_result
