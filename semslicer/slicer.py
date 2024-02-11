@@ -116,7 +116,7 @@ class Slicer(object):
 
         if method == "random":
             selected_dialogs = select_random_examples(dialogs, num)
-            selected_results = self.teacher.label(selected_dialogs)
+            selected_results = self.teacher._send_request(selected_dialogs, temperature=0)
         else:
             # generate results from the student model
             results, _, probs = self.annotate(data, prompt, return_probs=True)
@@ -124,7 +124,7 @@ class Slicer(object):
                 selected_dialogs, selected_results = select_usp_examples(dialogs, results, probs, num)
             elif method == "active_learning":
                 selected_dialogs = select_boundary_examples(dialogs, probs, num)
-                selected_results = self.teacher.label(selected_dialogs)
+                selected_results = self.teacher._send_request(selected_dialogs, temperature=0)
         
         few_shot_str = to_few_shot_str(selected_dialogs, selected_results)
         
@@ -232,6 +232,7 @@ if __name__ == "__main__":
     slicer = Slicer(model_name="flan-t5", model_size="xxl")
     # random select data
     test_data = df.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
+    slicer.generate_few_shot_example_batch(df, keywords, method="random")
     # slicer.generate_few_shot_example_batch(df, keywords, method="usp")
     # slicer.annotate_batch(test_data, keywords, prompt_existed=False)
-    slicer.annotate_batch(df, keywords, prompt_existed=True, add_few_shot=True)
+    # slicer.annotate_batch(df, keywords, prompt_existed=True, add_few_shot=True)

@@ -5,12 +5,25 @@ class TeacherModel:
         self.model = OpenAI().chat.completions
         self.model_name = model_name
 
-    def label(self, dialogs):
+    def _send_request(
+        self,
+        dialogs,
+        max_gen_len=1024,
+        temperature=1,
+        top_p=0.9,
+        batch_size=40,
+        return_probs=False,
+        labels=None,
+        mimic_starting_response=''
+    ):
         results = []
+        if mimic_starting_response != '':
+            dialogs = [dialog + [{"role": "assistant", "content": mimic_starting_response}] for dialog in dialogs]
         for dialog in dialogs:
             response = self.model.create(
                 model=self.model_name,
-                messages=dialog
+                messages=dialog,
+                temperature=temperature,
             )
             results.append(response.choices[0].message.content)
         return results
@@ -24,5 +37,5 @@ if __name__ == "__main__":
         {"role": "system", "content": "Is the text relavnt to mental health? Answer ONLY yes or no. Do NOT explain your answer."},
         {"role": "user", "content": "Text: I feel perfect today.\n Answer:"}
     ]]
-    results = teacher.label(dialogs)
+    results = teacher._send_request(dialogs, temperature=0)
     print(results)
