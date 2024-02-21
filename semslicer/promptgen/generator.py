@@ -9,11 +9,12 @@ import nltk
 from multi_rake import Rake
 from ..utils.config import config
 from .paraphraser import Paraphraser
+from ..model.teacher import TeacherModel
 from difflib import SequenceMatcher
 
 logger = get_logger("INFO", "prompt")
 
-class PromptGenerator:
+class PromptGeneratorV0:
 
     def __init__(self, model_name="llama2", model_size="13b-chat"):
         self.prompt_templates = {
@@ -120,12 +121,43 @@ class PromptGenerator:
 
         logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
 
+GEN_PROMPT = '''A user is exploring a dataset to identify a subset that matches their goal. Your job is to help the user craft a classification question. Answer ONLY with the question.
+
+Example 1
+User goal: age
+Question: Does the text mention a person's age?
+
+Example 2
+User goal: slang
+Question: Does the text use any slang?
+
+Following the same format above from the examples, craft a classification question with the following goal.
+'''
+
+EXAMPLE_GEN_PROMPT = '''Write {n} examples with a '{label}' answer to the question above, following the format below.
+
+Text: {{text}}
+Answer: {{answer}}'''
+
 class PromptGenerator:
 
-    def __init__(self, model_name="llama2", model_size="13b-chat", num_prompts=8):
-        self.generator = Paraphraser(model_name, model_size)
+    def __init__(self, model_name="gpt-4-turbo-preview", model_size="", num_prompts=1):
+        self.paraphraser = Paraphraser(model_name, model_size)
+        self.generator = TeacherModel(model_name)
         self.validate_flag = False
         self.num_prompts = num_prompts
+
+    def generate_prompts(self, queries):
+        results = self.generator._send_request(
+            [[
+                {"role": "system", "content": GEN_PROMPT}, 
+                {"role": "user", "content": f'User goal: {query}'},
+                {"role": "assistant", "content": f'Question: '}
+            ] for query in queries], 
+            temperature=1,
+        )
+        logger.info(results)
+        return results
 
     def find_prompts_list(self, keyword_list):
         '''
@@ -135,7 +167,10 @@ class PromptGenerator:
             # prompt dataframe
             prompt_df = pd.DataFrame()
 
-            prompts = self.generator.generate_prompts([keyword] * self.num_prompts)
+            prompts = self.generate_prompts([keyword])
+            if self.num_prompts > 1:
+                paraphrased_prompts = self.paraphraser.paraphrase_prompt(prompts[0], keyword, self.num_prompts - 1)
+                prompts = prompts + paraphrased_prompts
 
             # deduplicate
             prompts = list(set(prompts))
@@ -144,6 +179,24 @@ class PromptGenerator:
             prompt_df = prompt_df.drop_duplicates()
             prompt_df.to_csv(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx), index=False)
 
+
+class ExampleGenerator:
+
+    def __init__(self, model_name="gpt-4-turbo-preview", model_size="", num_examples=5):
+        self.generator = TeacherModel(model_name)
+        self.num_examples = num_examples
+
+    def generate_examples(self, question_prompt, label):
+        results = self.generator._send_request(
+            [[
+                {"role": "user", "content": question_prompt},
+                {"role": "user", "content": EXAMPLE_GEN_PROMPT.format(n=self.num_examples, label=label)},
+            ]], 
+            temperature=1,
+        )
+        examples_str = results[0]
+        logger.info(examples_str)
+        return examples_str
 
 if __name__ == '__main__':
     result_path = os.path.join("result", 'testbed')
@@ -160,4 +213,8 @@ if __name__ == '__main__':
         "sarcasm"
     ]
     promptGen.find_prompts_list(test_keywords)
+
+    exampleGen = ExampleGenerator()
+    results = exampleGen.generate_examples("Does the text contain anything related to pronouns?", "yes")
+    print(results)
     # promptGen.find_prompts_list(["negation", "sarcasm"])

@@ -6,6 +6,7 @@ import en_core_web_sm
 import nltk
 from multi_rake import Rake
 from ..model.llm_server import Generator
+from ..model.teacher import TeacherModel
 
 logger = get_logger("INFO", "prompt")
 
@@ -33,7 +34,8 @@ Following the same format above from the examples, craft a classification questi
 class Paraphraser:
 
     def __init__(self, model_name="llama2", model_size="13b-chat"):
-        self.generator = Generator(model_name, model_size)
+        # self.generator = Generator(model_name, model_size)
+        self.generator = TeacherModel()
 
     def generate_prompts(self, queries):
         results = self.generator._send_request(
