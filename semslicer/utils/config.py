@@ -1,8 +1,6 @@
 import yaml
 import os
 
-
-
 def read_yaml_config(path, encoding="utf8"):
     with open(path, mode='r', encoding=encoding) as f:
         config = yaml.safe_load(f)
@@ -10,7 +8,10 @@ def read_yaml_config(path, encoding="utf8"):
 
 
 class Config:
-    def __init__(self, path):
+    def __init__(self):
+        self.config = None
+
+    def read_config(self, path):
         self.config = read_yaml_config(path)
 
     def __getitem__(self, key):
@@ -26,4 +27,4 @@ class Config:
                 if name in ["PROMPT_PATH", "SLICE_RESULT_PATH", "FINAL_PROMPT_PATH", "FINAL_RESULT_PATH", "FEW_SHOT_PATH"]:
                     self.config[stage][name] = os.path.join(result_path, self.config[stage][name])
 
-config = Config("config.yaml")
+config = Config()

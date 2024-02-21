@@ -3,7 +3,7 @@ from .utils.config import config
 from .utils.log import get_logger
 from .utils.file import read_txt_file, read_csv_file
 from .slicer import Slicer
-from .promptgen.prompt import PromptGenerator
+from .promptgen.generator import PromptGenerator
 import os
 
 logger = get_logger("INFO", "main")
@@ -13,6 +13,8 @@ def main():
     result_path = os.path.join("result", args.exp_name)
     if not os.path.exists(result_path):
         os.makedirs(result_path)
+
+    config.read_config(args.config_path)
     config.update_path(args.exp_name)
 
     logger.info("Start running task: {exp}".format(exp=args.exp_name))
