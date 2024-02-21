@@ -5,7 +5,7 @@ import pandas as pd
 
 class SliceResult:
 
-    def __init__(self, exp_name, keywords, kw2cat, target_label=None, is_final=False):
+    def __init__(self, exp_name, keywords, kw2cat, category_column=None, target_label=None, is_final=False):
         '''
             df: pandas dataframe
             keywords: slice keywords
@@ -15,6 +15,7 @@ class SliceResult:
         self.kw2cat = kw2cat
         self.is_final = is_final
         self.target_label = target_label
+        self.category_column = category_column
         if is_final:
             self.df = pd.read_csv(f"result/{exp_name}/final_result.csv")
         else:
@@ -24,8 +25,8 @@ class SliceResult:
         
     def generate_ground_truth(self):
         for kw in self.keywords:
-            if 'category' in self.df.columns:
-                self.df[f'{kw}_gt'] = self.df['category'] == self.kw2cat[kw]
+            if self.category_column is not None:
+                self.df[f'{kw}_gt'] = self.df[self.category_column] == self.kw2cat[kw]
             else:
                 self.df[f'{kw}_gt'] = self.df[self.kw2cat[kw]] == self.target_label
 
