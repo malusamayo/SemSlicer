@@ -8,7 +8,7 @@ from .utils.file import read_txt_file, read_csv_file
 from .utils.config import config
 from .model.llm_server import Generator
 from .model.teacher import TeacherModel
-from .promptgen.prompt import PromptGenerator
+from .promptgen.generator import ExampleGenerator
 from .promptgen.selector import PromptSelector, select_usp_examples, select_boundary_examples, select_random_examples
 
 logger = get_logger("INFO", "label")
@@ -54,6 +54,7 @@ class Slicer(object):
     def __init__(self, model_name="flan-t5", model_size="xxl"):
         self.generator = Generator(model_name, model_size)
         self.prompt_selector = PromptSelector()
+        self.example_generator = ExampleGenerator()
         self.teacher = TeacherModel()
 
     def calibrate_prob(self, prompt: str, probs: torch.Tensor, labels: List[str], few_shot_str: str=""):
@@ -117,6 +118,23 @@ class Slicer(object):
         if method == "random":
             selected_dialogs = select_random_examples(dialogs, num)
             selected_results = self.teacher._send_request(selected_dialogs, temperature=0)
+            
+            if config["SLICING"]["SYNTHETIC_GEN"]:
+                binary_result = [1 if result.lower().find("yes") != -1 and result.lower().find("no") == -1 else 0 for result in selected_results]
+                num_yes = sum(binary_result)
+                num_no = len(binary_result) - num_yes
+
+                # generate extra dialogs if unbalanced results
+                if num_yes < num/2 or num_no < num/2:
+                    few_shot_str = to_few_shot_str(selected_dialogs, selected_results)
+                    context_prompt = SYSTEM_PROMPT.format(question=prompt) + few_shot_str
+
+                    underrepresented_label = "yes" if num_yes < num_no else "no"
+                    extra_examples_str = self.example_generator.generate_examples(context_prompt, underrepresented_label, num_no - num_yes)
+
+                    few_shot_str += extra_examples_str + '\n\n'
+                    return few_shot_str                    
+            
         else:
             # generate results from the student model
             results, _, probs = self.annotate(data, prompt, return_probs=True)

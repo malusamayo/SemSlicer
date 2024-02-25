@@ -182,15 +182,14 @@ class PromptGenerator:
 
 class ExampleGenerator:
 
-    def __init__(self, model_name="gpt-4-turbo-preview", model_size="", num_examples=5):
+    def __init__(self, model_name="gpt-4-turbo-preview", model_size=""):
         self.generator = TeacherModel(model_name)
-        self.num_examples = num_examples
 
-    def generate_examples(self, question_prompt, label):
+    def generate_examples(self, question_prompt, label, num_examples=5):
         results = self.generator._send_request(
             [[
                 {"role": "user", "content": question_prompt},
-                {"role": "user", "content": EXAMPLE_GEN_PROMPT.format(n=self.num_examples, label=label)},
+                {"role": "user", "content": EXAMPLE_GEN_PROMPT.format(n=num_examples, label=label)},
             ]], 
             temperature=1,
         )
