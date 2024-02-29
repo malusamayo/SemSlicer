@@ -5,7 +5,7 @@ import pandas as pd
 
 class SliceResult:
 
-    def __init__(self, exp_name, keywords, kw2cat, category_column=None, target_label=None, is_final=False):
+    def __init__(self, exp_name, keywords, kw2cat, category_column=None, is_final=False):
         '''
             df: pandas dataframe
             keywords: slice keywords
@@ -14,7 +14,6 @@ class SliceResult:
         self.keywords = keywords
         self.kw2cat = kw2cat
         self.is_final = is_final
-        self.target_label = target_label
         self.category_column = category_column
         if is_final:
             self.df = pd.read_csv(f"result/{exp_name}/final_result.csv")
@@ -28,7 +27,7 @@ class SliceResult:
             if self.category_column is not None:
                 self.df[f'{kw}_gt'] = self.df[self.category_column] == self.kw2cat[kw]
             else:
-                self.df[f'{kw}_gt'] = self.df[self.kw2cat[kw]] == self.target_label
+                self.df[f'{kw}_gt'] = self.df[self.kw2cat[kw]]
 
     def generate_majority_vote(self):
         def majority_vote(row, cols):
@@ -73,6 +72,9 @@ class SliceResult:
         def negative(col):
             return (df[col] == 0).sum() / len(df)
 
+        def positive_gt(col):
+            return (gt_col == 1).sum() / len(df)
+
         return {
             'Acc': acc(col),
             'Precision': precision(col),
@@ -80,11 +82,12 @@ class SliceResult:
             'F1': f1(col),
             'Positive': positive(col),
             'Negative': negative(col),
-            'Pseudo Acc': pseudo_acc(col)
+            'Pseudo Acc': pseudo_acc(col),
+            'Slice Fraction': positive_gt(col),
         }
 
     def compute_stats_all(self):
-        result_table = pd.DataFrame(columns=['Acc', 'Precision', 'Recall', 'F1', 'Positive', 'Negative', 'Pseudo Acc', 'Prompt'])
+        result_table = pd.DataFrame(columns=['Acc', 'Precision', 'Recall', 'F1', 'Positive', 'Negative', 'Pseudo Acc', 'Slice Fraction', 'Prompt'])
         for idx, kw in enumerate(self.keywords):
             if self.is_final:
                 pred_cols = [col for col in self.df.columns if col.startswith(f'label_{kw}') and not col.endswith('meta')]
