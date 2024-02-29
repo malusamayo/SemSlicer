@@ -24,6 +24,7 @@ def select_boundary_examples(dialogs, probs, nums):
     return [dialogs[idx] for idx in selected_idx]
 
 def select_random_examples(dialogs, nums):
+    torch.manual_seed(42)
     selected_idx = torch.randperm(len(dialogs))[:nums]
     return [dialogs[idx] for idx in selected_idx]
 
@@ -74,13 +75,13 @@ class PromptSelector:
             criteria: criteria for prompt selection
         """
         if criteria == 'min_noise':
-            prompt_df['sigma'] = prompt_df['sigma'].apply(lambda x: x if x > 0 else -x)
-            min_sigma_idx = prompt_df['sigma'].idxmin()
-            prompt = prompt_df.at[min_sigma_idx, '{keyword}_prompt'.format(keyword=keyword)]
+            noise = prompt_df[f'{keyword}_sigma'].apply(lambda x: x if x > 0 else -x)
+            min_noise_idx = noise.idxmin()
+            prompt = prompt_df.at[min_noise_idx, '{keyword}_prompt'.format(keyword=keyword)]
         elif criteria == 'default':
             prompt = prompt_df.at[0, '{keyword}_prompt'.format(keyword=keyword)]
         elif criteria == 'maj_vote':
-            max_acc_idx = prompt_df['pseudo_acc'].idxmax()
+            max_acc_idx = prompt_df[f'{keyword}_pseudo_acc'].idxmax()
             prompt = prompt_df.at[max_acc_idx, '{keyword}_prompt'.format(keyword=keyword)]
         return prompt
 
@@ -93,6 +94,11 @@ class PromptSelector:
         valid_keywords = []
         index = -1
 
+        # read prompt result
+        prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=index))
+        logger.info(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=index))
+        logger.info(prompt_df.info())
+
         # prompt analysis
         for _i, key in enumerate(keywords):
             logger.info("processing keyword: {key}".format(key=key))
@@ -104,11 +110,6 @@ class PromptSelector:
             index += 1
             valid_keywords.append(key)
 
-            # read prompt result
-            prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=index))
-            logger.info(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=index))
-            logger.info(prompt_df.info())
-
             # calculate prompt result
             df["{key}_result".format(key=key)] = 0
             for i in range(len(prompt_df)):
@@ -119,13 +120,11 @@ class PromptSelector:
                     break
             
             # calculate pseudo accuracy
-            prompt_df["pseudo_acc"] = self.accuracy_estimate(df, key, prompt_num)
+            prompt_df["{key}_pseudo_acc"] = self.accuracy_estimate(df, key, prompt_num)
 
             if self.noise_estimate_flag:
-                prompt_df["tau"], prompt_df["sigma"] = self.noise_estimate(df, key, prompt_num)
+                prompt_df["{key}_tau"], prompt_df["{key}_sigma"] = self.noise_estimate(df, key, prompt_num)
             
-            # save result
-            prompt_df.to_csv(config["EXPERIMENT"]["FINAL_PROMPT_PATH"].format(key_idx=index), index=False)
 
             # # estimated labels
             # df[f"estimated_label_{key}"] = cubam.x.data.tolist()
@@ -137,9 +136,11 @@ class PromptSelector:
             #     portions.append(len(df[(df["{key}_prompt{id}".format(key=key, id=idx)] == 1)]) / len(df))
             # for idx, portion, tau, sigma in zip(range(len(portions)), portions, prompt_df["tau"], prompt_df["sigma"]):
             #     logger.info("portion{portion:.4f}, tau{tau:.4f}, sigma{sigma:.4f}, prompt {prompt} ".format(prompt=prompt_df.at[idx, '{key}_prompt'.format(key=key)], portion=portion, tau=tau, sigma=sigma))
-        
-        # save to file
+
+    
         logger.info("valid keywords: {valid_keywords}".format(valid_keywords=valid_keywords))
+        # save result
+        prompt_df.to_csv(config["EXPERIMENT"]["FINAL_PROMPT_PATH"], index=False)
 
 if __name__ == "__main__":
     keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])

@@ -150,23 +150,21 @@ class Slicer(object):
 
         return few_shot_str
 
-    def generate_few_shot_example_batch(self, data, keywords, method="usp"):
+    def generate_few_shot_example_batch(self, data, keywords, method="usp", select_prompt=False):
         few_shot_str_df = pd.DataFrame(columns=keywords)
-        for key_idx, keyword in enumerate(keywords):
+        for keyword in keywords:
             logger.info("processing keyword: {key}".format(key=keyword))
 
             # read prompt
-            slice_path = config["EXPERIMENT"]["SLICE_RESULT_PATH"]
-            result_path = config["EXPERIMENT"]["FINAL_PROMPT_PATH"].format(key_idx=key_idx)
-            
-            if os.path.exists(slice_path):
+            if select_prompt:
+                result_path = config["EXPERIMENT"]["FINAL_PROMPT_PATH"]
                 if not os.path.exists(result_path):
                     self.prompt_selector.analyze(keywords)
                 prompt_df = read_csv_file(result_path)
                 prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
             else:
-                # if final prompts are not generated, use the default prompt
-                prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx))
+                # use the default prompt
+                prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"])
                 prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='default')
 
             # select prompt
@@ -174,7 +172,7 @@ class Slicer(object):
             few_shot_str_df.at[0, keyword] = few_shot_str
         few_shot_str_df.to_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
 
-    def annotate_batch(self, data, keywords, prompt_existed=False, use_calibrate=False, add_few_shot=False):
+    def annotate_batch(self, data, keywords, select_prompt=False, use_calibrate=False, add_few_shot=False):
         """Annotate data in batch.
         
         Parameters
@@ -184,55 +182,56 @@ class Slicer(object):
             The data should contain a column named "context" which contains the text to be annotated.
         keywords : list
             The list of keywords.
-        prompt_existed : bool
+        select_prompt : bool
             Whether the prompt has been generated.
+        use_calibrate : bool
+            Whether to calibrate the probability.
+        add_few_shot : bool
+            Whether to add few-shot examples.
         """
         
         if add_few_shot:
             if not os.path.exists(config["EXPERIMENT"]["FEW_SHOT_PATH"]):
-                self.generate_few_shot_example_batch(data, keywords, method="random")
+                self.generate_few_shot_example_batch(data, keywords, method="random", select_prompt=select_prompt)
             few_shot_str_df = pd.read_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"])
 
-        for key_idx, keyword in enumerate(keywords):
+
+        if select_prompt:
+            if not os.path.exists(config["EXPERIMENT"]["FINAL_PROMPT_PATH"]):
+                self.prompt_selector.analyze(keywords)
+            prompt_df = read_csv_file(config["EXPERIMENT"]["FINAL_PROMPT_PATH"])
+        else:
+            prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"])
+            
+        for keyword in keywords:
             logger.info("processing keyword: {key}".format(key=keyword))
 
             few_shot_str = ""
             if add_few_shot:
                 few_shot_str = few_shot_str_df.at[0, keyword]
             
-            if not prompt_existed:
-                prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx))
-                prompts = prompt_df["{keyword}_prompt".format(keyword=keyword)].tolist()
+            prompts = prompt_df["{keyword}_prompt".format(keyword=keyword)].tolist()
 
-                data["{}_result".format(keyword)] = 0.0
-                for index, prompt in enumerate(prompts):
-                    logger.info("processing prompt: {prompt}".format(prompt=prompt.split("\n")[0]))
-                    
-                    meta_result, binary_result, _ = self.annotate(data, prompt, return_probs=use_calibrate, use_calibrate=use_calibrate, few_shot_str=few_shot_str)
+            # only use the selected prompt
+            if select_prompt:
+                prompts = [self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')]
+                
+            data["{}_result".format(keyword)] = 0.0
+            for index, prompt in enumerate(prompts):
+                logger.info("processing prompt: {prompt}".format(prompt=prompt.split("\n")[0]))
+                
+                meta_result, binary_result, _ = self.annotate(data, prompt, return_probs=use_calibrate, use_calibrate=use_calibrate, few_shot_str=few_shot_str)
 
-                    data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = meta_result
-                    data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = binary_result
-                    data["{}_result".format(keyword)] += data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
-                
-                    ## save test data
-                    data.to_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"], index=False)
-                
-                logger.info(data.info())
+                data["{keyword}_prompt{id}_meta".format(keyword=keyword, id=index)] = meta_result
+                data["{keyword}_prompt{id}".format(keyword=keyword, id=index)] = binary_result
+                data["{}_result".format(keyword)] += data["{keyword}_prompt{id}".format(keyword=keyword, id=index)]
+            
+                ## save test data
                 data.to_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"], index=False)
-            else:
-                # read prompt
-                result_path = config["EXPERIMENT"]["FINAL_PROMPT_PATH"].format(key_idx=key_idx)
-                if not os.path.exists(result_path):
-                    self.prompt_selector.analyze(keywords)
-                prompt_df = read_csv_file(result_path)
-                # select prompt
-                prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')
+            
+            logger.info(data.info())
+            data.to_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"], index=False)     
                 
-                meta_result, binary_result, _ = self.annotate(data, prompt, few_shot_str=few_shot_str)
-                
-                data['label_{keyword}_meta'.format(keyword=keyword)] = meta_result
-                data['label_{keyword}'.format(keyword=keyword)] = binary_result
-                data.to_csv(config["EXPERIMENT"]["FINAL_RESULT_PATH"], index=False)
             
 
 if __name__ == "__main__":

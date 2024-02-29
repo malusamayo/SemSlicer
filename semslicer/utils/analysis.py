@@ -88,15 +88,15 @@ class SliceResult:
 
     def compute_stats_all(self):
         result_table = pd.DataFrame(columns=['Acc', 'Precision', 'Recall', 'F1', 'Positive', 'Negative', 'Pseudo Acc', 'Slice Fraction', 'Prompt'])
-        for idx, kw in enumerate(self.keywords):
+        prompt_df = pd.read_csv(f"result/{self.exp_name}/prompt_result.csv")
+        for kw in self.keywords:
             if self.is_final:
                 pred_cols = [col for col in self.df.columns if col.startswith(f'label_{kw}') and not col.endswith('meta')]
             else:
                 pred_cols = [col for col in self.df.columns if col.startswith(f'{kw}_prompt') and not col.endswith('meta')]
-            prompts = pd.read_csv(f"result/{self.exp_name}/prompt_result_{idx}.csv")
             for n_col, col in enumerate(pred_cols):
                 stats = self.compute_stats(col, kw)
-                stats['Prompt'] = prompts.iloc[n_col][f'{kw}_prompt']
+                stats['Prompt'] = prompt_df.iloc[n_col][f'{kw}_prompt']
                 result_table.loc[col] = stats
         self.result_table = result_table
         return result_table

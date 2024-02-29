@@ -18,23 +18,25 @@ def main():
     config.update_path(args.exp_name)
 
     logger.info("Start running task: {exp}".format(exp=args.exp_name))
+    logger.info("Config:\n{config}".format(config=config))
 
-    keywords = read_txt_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
+    keyword_df = read_csv_file(config["EXPERIMENT"]["KEYWORDS_PATH"])
+    keywords = keyword_df["keyword"].tolist()
     data = read_csv_file(config["EXPERIMENT"]["DATA_PATH"])
-    if args.task == "run_model":
-        from .inference import run_model
-        run_model()
-    elif args.task == "find_prompts":
+
+    if args.task == "find_prompts":
         promptGen = PromptGenerator()
-        promptGen.find_prompts_list(keywords)
+        promptGen.find_prompts_list(keyword_df)
+        slicer = Slicer(model_name="dummy")
+        if config["SLICING"]["FEW_SHOT"]:
+            if not os.path.exists(config["EXPERIMENT"]["FEW_SHOT_PATH"]):
+                slicer.generate_few_shot_example_batch(data, keywords, method="random")
     elif args.task == "slicing":
         # slicer = Slicer(model_name="llama2", model_size="13b-chat")
         slicer = Slicer(model_name="flan-t5", model_size="xxl")
-        test_data = data.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
-        slicer.annotate_batch(test_data, keywords, use_calibrate=config["SLICING"]["CALIBRATE"], add_few_shot=config["SLICING"]["FEW_SHOT"])
-    elif args.task == "label":
-        slicer = Slicer()
-        slicer.annotate_batch(data, keywords, prompt_existed=True)
+        if config["SLICING"]["SAMPLING"]:
+            data = data.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
+        slicer.annotate_batch(data, keywords, use_calibrate=config["SLICING"]["CALIBRATE"], add_few_shot=config["SLICING"]["FEW_SHOT"])
 
 
 if __name__ == "__main__":

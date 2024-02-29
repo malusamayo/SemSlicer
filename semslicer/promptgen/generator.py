@@ -159,15 +159,22 @@ class PromptGenerator:
         logger.info(results)
         return results
 
-    def find_prompts_list(self, keyword_list):
+    def find_prompts_list(self, keyword_df):
         '''
         find prompts for a list of keywords
         '''
-        for key_idx, keyword in enumerate(keyword_list):
-            # prompt dataframe
-            prompt_df = pd.DataFrame()
+        keyword_list = keyword_df["keyword"].tolist()
+        keyword_df["description"] = keyword_df["description"].fillna('').str.strip()
+        description_list = keyword_df["description"].tolist()
+        print(keyword_list)
+        print(description_list)
 
-            prompts = self.generate_prompts([keyword])
+
+        # prompt dataframe
+        prompt_df = pd.DataFrame()
+        for key_idx, (keyword, descrp) in enumerate(zip(keyword_list, description_list)):
+
+            prompts = self.generate_prompts([keyword if descrp == '' else descrp])
             if self.num_prompts > 1:
                 paraphrased_prompts = self.paraphraser.paraphrase_prompt(prompts[0], keyword, self.num_prompts - 1)
                 prompts = prompts + paraphrased_prompts
@@ -176,8 +183,7 @@ class PromptGenerator:
             prompts = list(set(prompts))
 
             prompt_df["{keyword}_prompt".format(keyword=keyword)] = prompts
-            prompt_df = prompt_df.drop_duplicates()
-            prompt_df.to_csv(config["EXPERIMENT"]["PROMPT_PATH"].format(key_idx=key_idx), index=False)
+            prompt_df.to_csv(config["EXPERIMENT"]["PROMPT_PATH"], index=False)
 
 
 class ExampleGenerator:
