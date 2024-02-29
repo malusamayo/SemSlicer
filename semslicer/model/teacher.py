@@ -11,7 +11,6 @@ class TeacherModel:
         max_gen_len=1024,
         temperature=1,
         top_p=0.9,
-        batch_size=40,
         return_probs=False,
         labels=None,
         mimic_starting_response=''

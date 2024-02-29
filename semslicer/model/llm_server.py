@@ -6,7 +6,7 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
 
 class Generator:
 
-    def __init__(self, model_name, model_size):
+    def __init__(self, model_name, model_size, batch_size=10):
         self.model_name = model_name
         self.model_size = model_size
         if model_name == 'llama2':
@@ -15,7 +15,7 @@ class Generator:
                     "meta-llama/Llama-2-{}-hf".format(model_size),
                     is_chat_model=True,
                     load_4bit=True,
-                    batch_size=10
+                    batch_size=batch_size
                 )
             except:
                 assert False
@@ -24,7 +24,7 @@ class Generator:
                     f"google/flan-t5-{model_size}".format(model_size),
                     is_chat_model=True,
                     load_4bit=True,
-                    batch_size=10
+                    batch_size=batch_size
             )
 
     def _send_request(
@@ -33,7 +33,7 @@ class Generator:
         max_gen_len=1024,
         temperature=0.01,
         top_p=0.9,
-        batch_size=40,
+        batch_size=10,
         return_probs=False,
         labels=None,
         mimic_starting_response='',

@@ -52,7 +52,7 @@ def to_dialog(data, prompt, few_shot_str=""):
 class Slicer(object):
 
     def __init__(self, model_name="flan-t5", model_size="xxl"):
-        self.generator = Generator(model_name, model_size)
+        self.generator = Generator(model_name, model_size, batch_size=5)
         self.prompt_selector = PromptSelector()
         self.example_generator = ExampleGenerator()
         self.teacher = TeacherModel()
@@ -67,7 +67,7 @@ class Slicer(object):
                 {"role": "user", "content": PROMPT.format(question=prompt, passage="")}
             ]
         ]
-        _, base_probs = self.generator._send_request(dialogs, batch_size=1, return_probs=True, labels=labels)
+        _, base_probs = self.generator._send_request(dialogs, return_probs=True, labels=labels)
         logger.info("base_probs = {base_probs}".format(base_probs=base_probs))
 
         # calibrate the probability for n*2 tensor
@@ -96,11 +96,11 @@ class Slicer(object):
         probs = None
         # generate results
         if return_probs:
-            results, probs = self.generator._send_request(dialogs, batch_size=10, return_probs=True)
+            results, probs = self.generator._send_request(dialogs, return_probs=True)
             if use_calibrate:
                 meta_result, probs = self.calibrate_prob(prompt, probs, labels, few_shot_str=few_shot_str)
         else:
-            results = self.generator._send_request(dialogs, batch_size=10)
+            results = self.generator._send_request(dialogs)
             meta_result = [result for result in results]
         
         logger.info("generated results")
