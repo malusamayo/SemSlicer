@@ -28,6 +28,6 @@ class Config:
                     self.config[stage][name] = os.path.join(result_path, self.config[stage][name])
     
     def __str__(self):
-        return str(self.config)
+        return yaml.dump(self.config)
 
 config = Config()
