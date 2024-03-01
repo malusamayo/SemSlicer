@@ -52,7 +52,8 @@ def to_dialog(data, prompt, few_shot_str=""):
 class Slicer(object):
 
     def __init__(self, model_name="flan-t5", model_size="xxl"):
-        self.generator = Generator(model_name, model_size, batch_size=5)
+        self.generator = Generator(model_name, model_size)
+        # self.generator = TeacherModel("gpt-3.5-turbo")
         self.prompt_selector = PromptSelector()
         self.example_generator = ExampleGenerator()
         self.teacher = TeacherModel()
@@ -96,11 +97,11 @@ class Slicer(object):
         probs = None
         # generate results
         if return_probs:
-            results, probs = self.generator._send_request(dialogs, return_probs=True)
+            results, probs = self.generator._send_request(dialogs, batch_size=20, return_probs=True)
             if use_calibrate:
                 meta_result, probs = self.calibrate_prob(prompt, probs, labels, few_shot_str=few_shot_str)
         else:
-            results = self.generator._send_request(dialogs)
+            results = self.generator._send_request(dialogs, batch_size=20)
             meta_result = [result for result in results]
         
         logger.info("generated results")
@@ -172,7 +173,7 @@ class Slicer(object):
             few_shot_str_df.at[0, keyword] = few_shot_str
         few_shot_str_df.to_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
 
-    def annotate_batch(self, data, keywords, select_prompt=False, use_calibrate=False, add_few_shot=False):
+    def annotate_batch(self, data, keywords, select_prompt=False, use_calibrate=False, add_few_shot=False, use_cache=False):
         """Annotate data in batch.
         
         Parameters
@@ -202,6 +203,10 @@ class Slicer(object):
             prompt_df = read_csv_file(config["EXPERIMENT"]["FINAL_PROMPT_PATH"])
         else:
             prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"])
+
+        # partial results exist
+        if use_cache and os.path.exists(config["EXPERIMENT"]["SLICE_RESULT_PATH"]):
+            data = pd.read_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"])
             
         for keyword in keywords:
             logger.info("processing keyword: {key}".format(key=keyword))
@@ -215,7 +220,11 @@ class Slicer(object):
             # only use the selected prompt
             if select_prompt:
                 prompts = [self.prompt_selector.select_prompt(prompt_df, keyword, criteria='maj_vote')]
-                
+            
+            # skip if exists
+            if use_cache and "{keyword}_result".format(keyword=keyword) in data.columns:
+                continue
+
             data["{}_result".format(keyword)] = 0.0
             for index, prompt in enumerate(prompts):
                 logger.info("processing prompt: {prompt}".format(prompt=prompt.split("\n")[0]))
