@@ -95,11 +95,11 @@ class Slicer(object):
         probs = None
         # generate results
         if return_probs:
-            results, probs = self.generator._send_request(dialogs, batch_size=20, return_probs=True)
+            results, probs = self.generator._send_request(dialogs, batch_size=10, return_probs=True)
             if use_calibrate:
                 meta_result, probs = self.calibrate_prob(prompt, probs, labels, few_shot_str=few_shot_str)
         else:
-            results = self.generator._send_request(dialogs, batch_size=20)
+            results = self.generator._send_request(dialogs, batch_size=10)
             meta_result = [result for result in results]
         
         logger.info("generated results")
@@ -107,7 +107,13 @@ class Slicer(object):
         binary_result = [label_map['yes'] if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else label_map['no'] for x in meta_result]
         return meta_result, binary_result, probs
 
-    def generate_few_shot_example(self, data, prompt, method="usp", num=8):
+    def generate_few_shot_example(self, 
+        data, 
+        prompt, 
+        method="usp", 
+        num=8, 
+        labels: List[str] = ["yes", "no"]
+    ):
         """Generate few-shot examples."""
 
         logger.info("generating few-shot examples with {method}: {prompt}".format(prompt=prompt, method=method))
@@ -119,18 +125,25 @@ class Slicer(object):
             selected_results = self.teacher._send_request(selected_dialogs, temperature=0)
             
             if config["SLICING"]["SYNTHETIC_GEN"]:
-                binary_result = [1 if result.lower().find("yes") != -1 and result.lower().find("no") == -1 else 0 for result in selected_results]
-                num_yes = sum(binary_result)
-                num_no = len(binary_result) - num_yes
+                simplified_result = ['yes' if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else 'no' for x in selected_results]
+                counts = {label: simplified_result.count(label) for label in labels}
+                underrepresented_label = min(counts, key=counts.get)
+                target_num = int(num/2)
 
                 # generate extra dialogs if unbalanced results
-                if num_yes < num/2 or num_no < num/2:
+                if counts[underrepresented_label] < target_num:
                     few_shot_str = to_few_shot_str(selected_dialogs, selected_results)
                     context_prompt = SYSTEM_PROMPT.format(question=prompt) + few_shot_str
 
-                    underrepresented_label = "yes" if num_yes < num_no else "no"
-                    extra_examples_str = self.example_generator.generate_examples(context_prompt, underrepresented_label, num_no - num_yes)
+                    extra_examples_str = self.example_generator.generate_examples(context_prompt, underrepresented_label, target_num - counts[underrepresented_label])
 
+                    # only keep target_num overpresented label
+                    overrepresented_index = [i for i, x in enumerate(simplified_result) if x != underrepresented_label][:target_num] 
+                    selected_idx = [i for i, x in enumerate(simplified_result) if x == underrepresented_label or (x != underrepresented_label and i in overrepresented_index)]
+                    selected_dialogs = [selected_dialogs[i] for i in selected_idx]
+                    selected_results = [selected_results[i] for i in selected_idx]
+                    
+                    few_shot_str = to_few_shot_str(selected_dialogs, selected_results)
                     few_shot_str += extra_examples_str + '\n\n'
                     return few_shot_str                    
             
@@ -169,7 +182,7 @@ class Slicer(object):
             # select prompt
             few_shot_str = self.generate_few_shot_example(data, prompt, method=method)
             few_shot_str_df.at[0, keyword] = few_shot_str
-        few_shot_str_df.to_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
+            few_shot_str_df.to_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
 
     def annotate_batch(self, data, keywords, select_prompt=False, use_calibrate=False, add_few_shot=False, use_cache=False):
         """Annotate data in batch.
