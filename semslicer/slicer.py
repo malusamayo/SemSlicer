@@ -7,7 +7,6 @@ from .utils.log import get_logger
 from .utils.file import read_txt_file, read_csv_file
 from .utils.config import config
 from .model.llm_server import Generator
-from .model.teacher import TeacherModel
 from .promptgen.generator import ExampleGenerator
 from .promptgen.selector import PromptSelector, select_usp_examples, select_boundary_examples, select_random_examples
 
@@ -53,10 +52,9 @@ class Slicer(object):
 
     def __init__(self, model_name="flan-t5", model_size="xxl"):
         self.generator = Generator(model_name, model_size)
-        # self.generator = TeacherModel("gpt-3.5-turbo")
         self.prompt_selector = PromptSelector()
         self.example_generator = ExampleGenerator()
-        self.teacher = TeacherModel()
+        self.teacher = Generator(model_name='gpt-4-turbo-preview')
 
     def calibrate_prob(self, prompt: str, probs: torch.Tensor, labels: List[str], few_shot_str: str=""):
         """Calibrate the probability."""

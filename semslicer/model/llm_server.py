@@ -2,11 +2,11 @@ import torch
 from .llama import Llama2Wrapper
 from .t5 import FlanT5Wrapper
 from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
-
+from .teacher import OpenAIModel
 
 class Generator:
 
-    def __init__(self, model_name, model_size, batch_size=10):
+    def __init__(self, model_name, model_size='', batch_size=10):
         self.model_name = model_name
         self.model_size = model_size
         if model_name == 'llama2':
@@ -26,6 +26,8 @@ class Generator:
                     load_4bit=True,
                     batch_size=batch_size
             )
+        if model_name in ['gpt-3.5-turbo', 'gpt-4-turbo-preview']:
+            self.generator = OpenAIModel(model_name, model_size)
 
     def _send_request(
         self,
@@ -68,6 +70,18 @@ class Generator:
                 return texts, probs
             else:
                 return texts
+        if self.model_name in ['gpt-3.5-turbo', 'gpt-4-turbo-preview']:
+            results = self.generator._send_request(
+                dialogs,
+                batch_size=batch_size,
+                max_gen_len=max_gen_len,
+                temperature=temperature,
+                top_p=top_p,
+                return_probs=return_probs,
+                labels=labels,
+                mimic_starting_response=mimic_starting_response
+            )
+            return results
 
         return results
 

@@ -9,7 +9,7 @@ import nltk
 from multi_rake import Rake
 from ..utils.config import config
 from .paraphraser import Paraphraser
-from ..model.teacher import TeacherModel
+from ..model.llm_server import Generator
 from difflib import SequenceMatcher
 
 logger = get_logger("INFO", "prompt")
@@ -143,7 +143,7 @@ class PromptGenerator:
 
     def __init__(self, model_name="gpt-4-turbo-preview", model_size="", num_prompts=1):
         self.paraphraser = Paraphraser(model_name, model_size)
-        self.generator = TeacherModel(model_name)
+        self.generator = Generator(model_name, model_size)
         self.validate_flag = False
         self.num_prompts = num_prompts
 
@@ -189,7 +189,7 @@ class PromptGenerator:
 class ExampleGenerator:
 
     def __init__(self, model_name="gpt-4-turbo-preview", model_size=""):
-        self.generator = TeacherModel(model_name)
+        self.generator = Generator(model_name, model_size)
 
     def generate_examples(self, question_prompt, label, num_examples=5):
         results = self.generator._send_request(
