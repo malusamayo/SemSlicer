@@ -23,8 +23,8 @@ def select_boundary_examples(dialogs, probs, nums):
     # logger.info(max_probs[selected_idx])
     return [dialogs[idx] for idx in selected_idx]
 
-def select_random_examples(dialogs, nums):
-    torch.manual_seed(42)
+def select_random_examples(dialogs, nums, seed=42):
+    torch.manual_seed(seed)
     selected_idx = torch.randperm(len(dialogs))[:nums]
     return [dialogs[idx] for idx in selected_idx]
 
