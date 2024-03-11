@@ -2,7 +2,7 @@ import torch
 from .llama import Llama2Wrapper
 from .t5 import FlanT5Wrapper
 from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
-from .teacher import OpenAIModel
+from .openai import OpenAIModel
 
 class Generator:
 
