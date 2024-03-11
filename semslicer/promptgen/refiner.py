@@ -20,7 +20,8 @@ class Refiner:
         Inspect the slicing result for a keyword
         '''
         print('Prompt:', self.prompts[f"{keyword}_prompt"])
-        print('Few shot examples:', self.few_shot_examples[keyword])
+        if self.few_shot_examples is not None:
+            print('Few shot examples:', self.few_shot_examples[keyword])
         
         positive_examples = self.sample_examples(keyword, label=1, sample_size=sample_size)
         print('Sampled positive examples:')
@@ -43,14 +44,16 @@ class Refiner:
         '''
         self.prompts[f"{keyword}_prompt"] = prompt
         data = self.annotated_examples if sample_examples is None else sample_examples
-        self.few_shot_examples[keyword] = self.slicer.generate_few_shot_example(data, prompt, method="random")
+        if self.few_shot_examples is not None:
+            self.few_shot_examples[keyword] = self.slicer.generate_few_shot_example(data, prompt, method="random")
     
     def save(self):
         '''
         Save the changes
         '''
         self.prompts.to_csv(self.config["EXPERIMENT"]["PROMPT_PATH"], index=False)
-        self.few_shot_examples.to_csv(self.config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
+        if self.few_shot_examples is not None:
+            self.few_shot_examples.to_csv(self.config["EXPERIMENT"]["FEW_SHOT_PATH"], index=False)
 
 
 
