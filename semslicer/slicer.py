@@ -119,6 +119,10 @@ class Slicer(object):
         logger.info("generating few-shot examples with {method}: {prompt}".format(prompt=prompt, method=method))
         
         dialogs = to_dialog(data, prompt)
+        if clusters is None:
+            # by default, the dataset should contain a column named "cluster"
+            # we use SentenceTransformers+KMeans to cluster the data
+            clusters = data['cluster'].tolist() 
 
         if method == "random":
             selected_dialogs = select_random_examples(dialogs, num)

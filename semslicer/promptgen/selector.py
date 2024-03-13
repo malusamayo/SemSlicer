@@ -2,6 +2,7 @@ from ..utils.file import read_csv_file, read_txt_file
 from ..utils.log import get_logger
 from ..utils.config import config
 from .cubam_new import Cubam
+from math import ceil
 import torch
 
 logger = get_logger("INFO", "prompt analysis")
@@ -23,10 +24,27 @@ def select_boundary_examples(dialogs, probs, nums):
     # logger.info(max_probs[selected_idx])
     return [dialogs[idx] for idx in selected_idx]
 
-def select_random_examples(dialogs, nums, seed=42):
+def select_random_examples(dialogs, nums, seed=42, clusters=None):
     torch.manual_seed(seed)
     selected_idx = torch.randperm(len(dialogs))[:nums]
-    return [dialogs[idx] for idx in selected_idx]
+    if clusters is not None:
+        # select examples from different clusters
+        cluster_num = max(clusters) + 1
+        selected_idx = []
+        num_per_cluster = ceil(nums / cluster_num) 
+        for cluster_id in range(cluster_num):
+            dialogs_in_cluster = [dialogs[i] for i, x in enumerate(clusters) if x==cluster_id]
+            index_in_cluster = [i for i, x in enumerate(clusters) if x==cluster_id]
+            # sample num_per_cluster examples from each cluster
+            selected_idx += [index_in_cluster[i] for i in torch.randperm(len(dialogs_in_cluster))[:num_per_cluster]]
+        selected_idx = selected_idx[:nums]
+
+        # rearrange selected_idx to interleave different clusters
+        selected_idx_tmp = []
+        for idx in range(num_per_cluster):
+            selected_idx_tmp += selected_idx[idx::num_per_cluster]
+        selected_idx = selected_idx_tmp
+    return [dialogs[idx] for idx in selected_idx], selected_idx
 
 class PromptSelector:
 
