@@ -17,35 +17,10 @@ EVAL_PROMPT = '''Are the following two questions asking the same thing? Answer y
 Question 1: {question1}
 Question 2: {question2}'''
 
-GEN_PROMPT = '''A user is exploring a dataset to identify a subset that matches their goal. Your job is to help the user craft a classification question. Answer ONLY with the question.
-
-Example 1
-User goal: age
-Question: Does the text mention a person's age?
-
-Example 2
-User goal: slang
-Question: Does the text use any slang?
-
-Following the same format above from the examples, craft a classification question with the following goal.
-'''
-
 class Paraphraser:
 
     def __init__(self, model_name="gpt-4-turbo-preview", model_size=""):
         self.generator = Generator(model_name, model_size)
-
-    def generate_prompts(self, queries):
-        results = self.generator._send_request(
-            [[
-                {"role": "system", "content": GEN_PROMPT}, 
-                {"role": "user", "content": f'User goal: {query}'}
-            ] for query in queries], 
-            temperature=0.7,
-            mimic_starting_response='Sure, I\'d be happy to help! Here\'s a question that might help you:\nQuestion: '
-        )
-        logger.info(results)
-        return results
 
     def evaluate_prompts(self, prompts):
         default_prompt = prompts[0]
