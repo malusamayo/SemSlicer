@@ -54,7 +54,8 @@ class Slicer(object):
         self.generator = Generator(model_name, model_size)
         self.prompt_selector = PromptSelector()
         self.example_generator = ExampleGenerator()
-        self.teacher = Generator(model_name='gpt-4-turbo-preview')
+
+        logger.info("Slicer initialized, model_name = {model_name}, model_size = {model_size}".format(model_name=model_name, model_size=model_size))
 
     def calibrate_prob(self, prompt: str, probs: torch.Tensor, labels: List[str], few_shot_str: str=""):
         """Calibrate the probability."""
@@ -112,7 +113,8 @@ class Slicer(object):
         prompt, 
         method="usp", 
         num=8, 
-        labels: List[str] = ["yes", "no"]
+        labels: List[str] = ["yes", "no"],
+        clusters: List[int] = None
     ):
         """Generate few-shot examples."""
 
@@ -125,7 +127,7 @@ class Slicer(object):
             clusters = data['cluster'].tolist() 
 
         if method == "random":
-            selected_dialogs = select_random_examples(dialogs, num)
+            selected_dialogs, _ = select_random_examples(dialogs, num, clusters=clusters)
             selected_results = self.teacher._send_request(selected_dialogs, temperature=0)
             
             if config["SLICING"]["SYNTHETIC_GEN"]:
@@ -140,17 +142,24 @@ class Slicer(object):
                     context_prompt = SYSTEM_PROMPT.format(question=prompt) + few_shot_str
 
                     extra_examples_str = self.example_generator.generate_examples(context_prompt, underrepresented_label, target_num - counts[underrepresented_label])
+                    extra_dialogs, extra_results = from_few_shot_str(extra_examples_str)
+
+                    selected_dialogs += extra_dialogs
+                    selected_results += extra_results
+                    simplified_result = ['yes' if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else 'no' for x in selected_results]
 
                     # only keep target_num overpresented label
-                    overrepresented_index = [i for i, x in enumerate(simplified_result) if x != underrepresented_label][:target_num] 
-                    selected_idx = [i for i, x in enumerate(simplified_result) if x == underrepresented_label or (x != underrepresented_label and i in overrepresented_index)]
-                    selected_dialogs = [selected_dialogs[i] for i in selected_idx]
-                    selected_results = [selected_results[i] for i in selected_idx]
-                    
-                    few_shot_str = to_few_shot_str(selected_dialogs, selected_results)
-                    few_shot_str += extra_examples_str + '\n\n'
-                    return few_shot_str                    
-            
+                    # overrepresented_index = [i for i, x in enumerate(simplified_result) if x != underrepresented_label][:target_num] 
+                    # selected_idx = [i for i, x in enumerate(simplified_result) if x == underrepresented_label or (x != underrepresented_label and i in overrepresented_index)]
+                    # selected_dialogs = [selected_dialogs[i] for i in selected_idx]
+                    # selected_results = [selected_results[i] for i in selected_idx]
+                
+                # interleave positive and negative examples
+                positive_examples = [(dialog, result) for dialog, result, label in zip(selected_dialogs, selected_results, simplified_result) if label == 'yes'][:target_num]
+                negative_examples = [(dialog, result) for dialog, result, label in zip(selected_dialogs, selected_results, simplified_result) if label == 'no'][:target_num]
+                interleaved_examples = [v for p in zip(negative_examples, positive_examples) for v in p]
+                selected_dialogs, selected_results = zip(*interleaved_examples)
+
         else:
             # generate results from the student model
             results, _, probs = self.annotate(data, prompt, return_probs=True)
