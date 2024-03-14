@@ -131,6 +131,10 @@ Example 2
 User goal: slang
 Question: Does the text use any slang?
 
+Example 3
+User goal: music
+Question: Is the text related to music?
+
 Following the same format above from the examples, craft a classification question with the following goal.
 '''
 
@@ -141,21 +145,26 @@ Answer: {{answer}}'''
 
 class PromptGenerator:
 
-    def __init__(self, model_name="gpt-4-turbo-preview", model_size="", num_prompts=1):
-        self.paraphraser = Paraphraser(model_name, model_size)
-        self.generator = Generator(model_name, model_size)
+    def __init__(self, model_name="gpt-4-turbo-preview", num_prompts=1, instruction_source="template", refine_flag=False):
+        self.paraphraser = Paraphraser(model_name)
+        self.generator = Generator(model_name)
         self.validate_flag = False
         self.num_prompts = num_prompts
+        self.instruction_source = instruction_source
+        self.refine_flag = refine_flag
 
     def generate_prompts(self, queries):
-        results = self.generator._send_request(
-            [[
-                {"role": "system", "content": GEN_PROMPT}, 
-                {"role": "user", "content": f'User goal: {query}'},
-                {"role": "assistant", "content": f'Question: '}
-            ] for query in queries], 
-            temperature=1,
-        )
+        if self.instruction_source == "template":
+            results = [f"Is the text related to {query.lower()}?" for query in queries]
+        elif self.instruction_source == "model":
+            results = self.generator._send_request(
+                [[
+                    {"role": "system", "content": GEN_PROMPT}, 
+                    {"role": "user", "content": f'User goal: {query}'},
+                    {"role": "assistant", "content": f'Question: '}
+                ] for query in queries], 
+                temperature=1,
+            )
         logger.info(results)
         return results
 
@@ -188,8 +197,8 @@ class PromptGenerator:
 
 class ExampleGenerator:
 
-    def __init__(self, model_name="gpt-4-turbo-preview", model_size=""):
-        self.generator = Generator(model_name, model_size)
+    def __init__(self, model_name="gpt-4-turbo-preview"):
+        self.generator = Generator(model_name)
 
     def generate_examples(self, question_prompt, label, num_examples=5):
         results = self.generator._send_request(

@@ -3,7 +3,7 @@ from .query_utils import query_batch
 import tqdm
 
 class OpenAIModel:
-    def __init__(self, model_name="gpt-4-turbo-preview", model_size=""):
+    def __init__(self, model_name="gpt-4-turbo-preview"):
         self.model = OpenAI().chat.completions
         self.model_name = model_name
 

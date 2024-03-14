@@ -14,6 +14,10 @@ class Config:
     def read_config(self, path):
         self.config = read_yaml_config(path)
 
+    def load_data_and_keyword_path(self, data_path, keyword_path):
+        self.config["EXPERIMENT"]["DATA_PATH"] = data_path
+        self.config["EXPERIMENT"]["KEYWORDS_PATH"] = keyword_path
+
     def __getitem__(self, key):
         return self.config[key]
 

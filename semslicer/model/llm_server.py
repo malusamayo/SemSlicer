@@ -19,15 +19,15 @@ class Generator:
                 )
             except:
                 assert False
-        if model_name == 'flan-t5':
+        if 'flan-t5' in model_name:
             self.generator = FlanT5Wrapper(
-                    f"google/flan-t5-{model_size}".format(model_size),
+                    f"google/{model_name}",
                     is_chat_model=True,
                     load_4bit=True,
                     batch_size=batch_size
             )
         if model_name in ['gpt-3.5-turbo', 'gpt-4-turbo-preview']:
-            self.generator = OpenAIModel(model_name, model_size)
+            self.generator = OpenAIModel(model_name)
 
     def _send_request(
         self,
@@ -54,7 +54,7 @@ class Generator:
                 mimic_starting_response=mimic_starting_response
             )
             return [result[0]['generated_text'].strip() for result in results]
-        if self.model_name == 'flan-t5':
+        if 'flan-t5' in self.model_name:
             results = self.generator.completion(
                 dialogs, 
                 max_gen_len=max_gen_len,

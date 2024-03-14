@@ -4,7 +4,7 @@ from semslicer.slicer import Slicer
 class Refiner:
     def __init__(self, config):
         self.config = config
-        self.few_shot_examples = pd.read_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"]) if config["SLICING"]["FEW_SHOT"] else None
+        self.few_shot_examples = pd.read_csv(config["EXPERIMENT"]["FEW_SHOT_PATH"]) if config["EXAMPLES"]["USE_FEW_SHOT"] else None
         self.prompts = pd.read_csv(config["EXPERIMENT"]["PROMPT_PATH"])
         self.annotated_examples = pd.read_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"])
         self.slicer = Slicer(model_name="dummy")

@@ -19,8 +19,8 @@ Question 2: {question2}'''
 
 class Paraphraser:
 
-    def __init__(self, model_name="gpt-4-turbo-preview", model_size=""):
-        self.generator = Generator(model_name, model_size)
+    def __init__(self, model_name="gpt-4-turbo-preview"):
+        self.generator = Generator(model_name)
 
     def evaluate_prompts(self, prompts):
         default_prompt = prompts[0]
