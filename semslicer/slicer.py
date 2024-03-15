@@ -28,7 +28,7 @@ logger = get_logger("INFO", "label")
 # My answer is '''
 
 
-SYSTEM_PROMPT =  '''{question} Answer ONLY yes or no. Do NOT explain your answer.'''
+SYSTEM_PROMPT =  '''{question} Answer ONLY yes or no.''' # Do NOT explain your answer.'''
 PROMPT = '''Text: {passage}
 Answer: '''
 
@@ -106,6 +106,7 @@ class Slicer(object):
             meta_result = [result for result in results]
         
         logger.info("generated results")
+        logger.info(f"total_tokens = {self.generator.compute_total_tokens(dialogs)}")
         
         binary_result = [label_map['yes'] if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else label_map['no'] for x in meta_result]
         return meta_result, binary_result, probs
@@ -226,6 +227,7 @@ class Slicer(object):
                 prompt_df = read_csv_file(config["EXPERIMENT"]["PROMPT_PATH"])
                 prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='default')
 
+            clusters = None
             # select prompt
             few_shot_str = self.generate_few_shot_example(data, prompt, num=num, 
                 input_sampling_strategy=input_sampling_strategy, output_label_source=output_label_source, 

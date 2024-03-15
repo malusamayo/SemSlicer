@@ -85,6 +85,14 @@ class Generator:
 
         return results
 
+    def compute_total_tokens(self, dialogs):
+        if 'flan-t5' in self.model_name:
+            dialog_inputs = [dialog[0]["content"] + '\n' + dialog[1]["content"] for dialog in dialogs]
+            return sum([len(self.generator.tokenizer.encode(dialog)) for dialog in dialog_inputs])
+        else:
+            return None
+        
+
 if __name__ == "__main__":
     generator = Generator('flan-t5', 'large')
 
