@@ -42,7 +42,10 @@ def main():
         slicer = Slicer(model_name=config["SLICING"]["MODEL_NAME"])
         if config["SLICING"]["SAMPLING"]:
             data = data.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
-        slicer.annotate_batch(data, keywords, use_calibrate=config["SLICING"]["CALIBRATE"], add_few_shot=config["EXAMPLES"]["USE_FEW_SHOT"])
+        slicer.annotate_batch(data, keywords, 
+            use_calibrate=config["SLICING"]["CALIBRATE"], 
+            add_few_shot=config["EXAMPLES"]["USE_FEW_SHOT"],)
+            # use_cache=True)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from .cubam_new import Cubam
 from math import ceil
 import torch
 
-logger = get_logger("INFO", "prompt analysis")
+logger = get_logger("INFO", "selector")
 
 def select_usp_examples(dialogs, results, probs, nums):
     num_per_class = int(nums / 2)
@@ -26,7 +26,10 @@ def select_boundary_examples(dialogs, probs, nums):
 
 def select_random_examples(dialogs, nums, seed=42, clusters=None):
     torch.manual_seed(seed)
+    logger.info(f"selecting random examples with seed {seed}")
+    
     selected_idx = torch.randperm(len(dialogs))[:nums]
+
     if clusters is not None:
         # select examples from different clusters
         cluster_num = max(clusters) + 1
