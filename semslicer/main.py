@@ -28,7 +28,10 @@ def main():
     logger.info("Keywords: {keywords}".format(keywords=keywords))
 
     if args.task == "find_prompts":
-        promptGen = PromptGenerator(instruction_source=config["INSTRUCTION"]["SOURCE"])
+        promptGen = PromptGenerator(
+            instruction_source=config["INSTRUCTION"]["SOURCE"],
+            refine_flag=config["INSTRUCTION"]["REFINE"],
+        )
         promptGen.find_prompts_list(keyword_df)
         slicer = Slicer(model_name="dummy")
         if config["EXAMPLES"]["USE_FEW_SHOT"]:

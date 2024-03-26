@@ -32,6 +32,17 @@ SYSTEM_PROMPT =  '''{question} Answer ONLY yes or no.''' # Do NOT explain your a
 PROMPT = '''Text: {passage}
 Answer: '''
 
+def from_few_shot_str(few_shot_str):
+    texts = re.split(r'Text: |Answer: ', few_shot_str)
+    texts = texts[1:]
+    dialogs = texts[::2]
+    results = texts[1::2]
+    dialogs = [[
+        {"role": "system", "content": ""},
+        {"role": "user", "content": "Text: " + dialog + "Answer: "},
+    ] for dialog in dialogs]
+    results = [x.strip() for x in results]
+    return dialogs, results
 
 def to_few_shot_str(dialogs, results):
     few_shot_examples = [dialog[1]["content"] + result for dialog, result in zip(dialogs, results)]

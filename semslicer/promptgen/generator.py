@@ -121,21 +121,35 @@ class PromptGeneratorV0:
 
         logger.info("unsuccessful keywords: {keywords}".format(keywords=unsuccessful_keywords))
 
-GEN_PROMPT = '''A user is exploring a dataset to identify a subset that matches their goal. Your job is to help the user craft a classification question. Answer ONLY with the question.
+GEN_PROMPT = '''A user is exploring a dataset to identify a subset that matches their goal. 
+Your job is to help the user craft a classification question. Answer ONLY with the question.
 
-Example 1
+---
+
+Follow the following format:
+
+User goal: {{instruction}}
+Suggestion: {{suggestion}}
+
+---
+
 User goal: age
 Question: Does the text mention a person's age?
 
-Example 2
 User goal: slang
 Question: Does the text use any slang?
 
-Example 3
 User goal: music
 Question: Is the text related to music?
+'''
 
-Following the same format above from the examples, craft a classification question with the following goal.
+REFINE_PROMPT = '''I have a classification instruction that does not perform well. Can you give me some suggestions to improve the instruction? 
+
+Follow the following format:
+
+Instruction: {{instruction}}
+Suggestion: {{suggestion}}
+Revised instruction: {{instruction}}
 '''
 
 EXAMPLE_GEN_PROMPT = '''Write {n} examples with a '{label}' answer to the question above, following the format below.
@@ -152,6 +166,17 @@ class PromptGenerator:
         self.num_prompts = num_prompts
         self.instruction_source = instruction_source
         self.refine_flag = refine_flag
+    
+    def refine_prompts(self, prompts):
+        results = self.generator._send_request(
+            [[
+                {"role": "system", "content": REFINE_PROMPT}, 
+                {"role": "user", "content": f'Instruction: {prompt}'}
+            ] for prompt in prompts], 
+            temperature=1,
+        )
+        results = [result.split('Revised instruction: ')[1].strip() for result in results]
+        return results
 
     def generate_prompts(self, queries):
         if self.instruction_source == "template":
@@ -165,6 +190,8 @@ class PromptGenerator:
                 ] for query in queries], 
                 temperature=1,
             )
+        if self.refine_flag:
+            results = self.refine_prompts(results)
         logger.info(results)
         return results
 
@@ -216,9 +243,9 @@ if __name__ == '__main__':
     result_path = os.path.join("result", 'testbed')
     if not os.path.exists(result_path):
         os.makedirs(result_path)
-    config.update_path('testbed')
+    # config.update_path('testbed')
 
-    promptGen = PromptGenerator()
+    promptGen = PromptGenerator(refine_flag=True)
     test_keywords = [
         "pronouns",
         "incorrect grammar",
@@ -226,9 +253,11 @@ if __name__ == '__main__':
         "text with user instructions",
         "sarcasm"
     ]
-    promptGen.find_prompts_list(test_keywords)
+    df = pd.DataFrame({"keyword": test_keywords})
+    df["description"] = [""] * len(test_keywords)
+    promptGen.find_prompts_list(df)
 
-    exampleGen = ExampleGenerator()
-    results = exampleGen.generate_examples("Does the text contain anything related to pronouns?", "yes")
-    print(results)
+    # exampleGen = ExampleGenerator()
+    # results = exampleGen.generate_examples("Does the text contain anything related to pronouns?", "yes")
+    # print(results)
     # promptGen.find_prompts_list(["negation", "sarcasm"])
