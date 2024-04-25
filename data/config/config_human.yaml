@@ -1,0 +1,28 @@
+EXPERIMENT:
+  KEYWORDS_PATH: placeholder
+  DATA_PATH: placeholder
+  FEW_SHOT_PATH: few_shot.csv
+  PROMPT_PATH: prompt_result.csv
+  SLICE_RESULT_PATH: slice_result.csv
+  FINAL_PROMPT_PATH: prompt_final_result.csv
+  FINAL_RESULT_PATH: final_result.csv
+
+EXAMPLES:
+  USE_FEW_SHOT: true
+  FEW_SHOT_SIZE: 8
+  SYNTHESIZE: false
+  SAMPLE_STRATEGY: human
+  LABEL_SOURCE: human
+
+INSTRUCTION:
+  SOURCE: template
+  REFINE: true
+
+SLICING:
+  SAMPLING: false
+  SAMPLE_SIZE: 1000
+  CALIBRATE: false
+  MODEL_NAME: flan-t5-xxl
+
+PROMPT_ANALYSIS:
+  NOISE_ESTIMATE: false

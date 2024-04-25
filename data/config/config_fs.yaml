@@ -1,0 +1,29 @@
+EXPERIMENT:
+  KEYWORDS_PATH: placeholder
+  DATA_PATH: placeholder
+  FEW_SHOT_PATH: few_shot.csv
+  PROMPT_PATH: prompt_result.csv
+  SLICE_RESULT_PATH: slice_result.csv
+  FINAL_PROMPT_PATH: prompt_final_result.csv
+  FINAL_RESULT_PATH: final_result.csv
+
+EXAMPLES:
+  USE_FEW_SHOT: true
+  FEW_SHOT_SIZE: 8
+  SYNTHESIZE: false
+  SAMPLE_STRATEGY: random
+  LABEL_SOURCE: self
+
+INSTRUCTION:
+  SOURCE: template
+  REFINE: false
+
+SLICING:
+  SAMPLING: false
+  SAMPLE_SIZE: 1000
+  CALIBRATE: false
+  MODEL_NAME: flan-t5-xxl
+  # MODEL_NAME: gpt-3.5-turbo
+
+PROMPT_ANALYSIS:
+  NOISE_ESTIMATE: false
