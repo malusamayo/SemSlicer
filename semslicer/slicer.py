@@ -28,7 +28,7 @@ logger = get_logger("INFO", "label")
 # My answer is '''
 
 
-SYSTEM_PROMPT =  '''{question} Answer ONLY yes or no.''' # Do NOT explain your answer.'''
+SYSTEM_PROMPT =  '''{question} Answer ONLY yes or no.\n\n''' # Do NOT explain your answer.'''
 PROMPT = '''Text: {passage}
 Answer: '''
 
@@ -62,11 +62,17 @@ def to_dialog(data, prompt, few_shot_str=""):
 
 class Slicer(object):
 
-    def __init__(self, model_name="dummy"):
-        self.generator = Generator(model_name)
+    def __init__(self, 
+        student_model="dummy", 
+        creator_model="gpt-4-turbo-preview",
+        teacher_model="gpt-4-turbo-preview",
+        batch_size=5
+    ):
+        self.generator = Generator(model_name=student_model)
         self.prompt_selector = PromptSelector()
-        self.example_generator = ExampleGenerator()
-        self.teacher = Generator(model_name='gpt-4-turbo-preview')
+        self.example_generator = ExampleGenerator(model_name=creator_model)
+        self.teacher = Generator(model_name=teacher_model)
+        self.batch_size = batch_size
 
         logger.info("Slicer initialized, model_name = {model_name}".format(model_name=model_name))
 
@@ -109,11 +115,11 @@ class Slicer(object):
         probs = None
         # generate results
         if return_probs:
-            results, probs = self.generator._send_request(dialogs, batch_size=10, return_probs=True)
+            results, probs = self.generator._send_request(dialogs, batch_size=self.batch_size, return_probs=True)
             if use_calibrate:
                 meta_result, probs = self.calibrate_prob(prompt, probs, labels, few_shot_str=few_shot_str)
         else:
-            results = self.generator._send_request(dialogs, batch_size=10)
+            results = self.generator._send_request(dialogs, batch_size=self.batch_size)
             meta_result = [result for result in results]
         
         logger.info("generated results")
@@ -173,7 +179,7 @@ class Slicer(object):
         dialogs = to_dialog(data, prompt)
 
         if input_sampling_strategy == "random":
-            selected_dialogs, _ = select_random_examples(dialogs, num)
+            selected_dialogs, _ = select_random_examples(dialogs, num, seed=42)
         elif input_sampling_strategy == "diversity":
             # by default, the dataset should contain a column named "cluster"
             # we use SentenceTransformers+KMeans to cluster the data
