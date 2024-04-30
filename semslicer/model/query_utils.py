@@ -163,7 +163,12 @@ def query_batch_wrapper(fn, prompts, batch_size, *args, **kwargs):
     # I have never used asyncio and have no idea if this a sane way to do this, but it works
     async def _query(prompts):
         async_responses = [fn(prompt, *args, **kwargs) for prompt in prompts]
-        return await tqdm_asyncio.gather(*async_responses)
+        try:
+            responses = await tqdm_asyncio.gather(*async_responses)
+        except Exception as e:
+            # print(e)
+            responses = [None for _ in prompts]
+        return responses
 
     all_results = []
     for start in range(0, len(prompts), batch_size):

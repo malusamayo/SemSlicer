@@ -19,22 +19,26 @@ class OpenAIModel:
         mimic_starting_response=''
     ):
         results = []
-        # system_prompt = dialogs[0][0]["content"]
-        # prompts = [dialog[1]["content"] for dialog in dialogs]
-        # results = query_batch(prompts, 
-        #     batch_size=batch_size,
-        #     model_name=self.model_name, 
-        #     system_msg=system_prompt, 
-        # temperature=temperature)
-        if mimic_starting_response != '':
-            dialogs = [dialog + [{"role": "assistant", "content": mimic_starting_response}] for dialog in dialogs]
-        for dialog in tqdm.tqdm(dialogs):
-            response = self.model.create(
-                model=self.model_name,
-                messages=dialog,
-                temperature=temperature,
-            )
-            results.append(response.choices[0].message.content)
+        # if mimic_starting_response != '':
+        #     dialogs = [dialog + [{"role": "assistant", "content": mimic_starting_response}] for dialog in dialogs]
+        
+        system_prompt = dialogs[0][0]["content"]
+        prompts = [dialog[1]["content"] for dialog in dialogs]
+        results = query_batch(prompts, 
+            batch_size=batch_size,
+            model_name=self.model_name, 
+            system_msg=system_prompt, 
+            temperature=temperature
+        )
+
+        ### below are sequential queries
+        # for dialog in tqdm.tqdm(dialogs):
+        #     response = self.model.create(
+        #         model=self.model_name,
+        #         messages=dialog,
+        #         temperature=temperature,
+        #     )
+        #     results.append(response.choices[0].message.content)
         return results
 
 if __name__ == "__main__":
