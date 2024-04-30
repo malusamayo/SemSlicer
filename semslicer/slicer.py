@@ -8,7 +8,7 @@ from .utils.log import get_logger
 from .utils.file import read_txt_file, read_csv_file
 from .utils.config import config
 from .model.llm_server import Generator
-from .promptgen.generator import ExampleGenerator
+from .promptgen.generator import ExampleGenerator, PromptGenerator
 from .promptgen.selector import PromptSelector, select_usp_examples, select_boundary_examples, select_random_examples
 
 logger = get_logger("INFO", "label")
@@ -74,7 +74,8 @@ class Slicer(object):
         self.teacher = Generator(model_name=teacher_model)
         self.batch_size = batch_size
 
-        logger.info("Slicer initialized, model_name = {model_name}".format(model_name=model_name))
+        logger.info("Slicer initialized. Student model: {student_model}, Teacher model: {teacher_model}, Creator model: {creator_model}".format(
+            student_model=student_model, teacher_model=teacher_model, creator_model=creator_model))
 
     def calibrate_prob(self, prompt: str, probs: torch.Tensor, labels: List[str], few_shot_str: str=""):
         """Calibrate the probability."""
@@ -324,8 +325,103 @@ class Slicer(object):
             
             logger.info(data.info())
             data.to_csv(config["EXPERIMENT"]["SLICE_RESULT_PATH"], index=False)     
-                
-            
+
+
+class InteractiveSlicer:
+
+    def __init__(self, keyword, data=None, func_config=None):
+        """Generate a slicing function for keyword.
+
+        Parameters
+        ----------
+        keyword : str
+            A slicing keyword or description.
+        data : pd.DataFrame
+            The data for few-shot example construction.
+        func_config : dict
+            Configuration for prompt construction and slicing.
+        ----------
+
+        Configuration Schema:
+        {
+            'few-shot': bool,
+            'few-shot-size': int,
+            'few-shot-sampling-strategy': ['random', 'diversity'],
+            'few-shot-labeling-strategy': ['self', 'teacher'],
+            'few-shot-synthesis': bool,
+            'instruction-source': ['template', 'model'],
+            'instruction-refine': bool,
+            'student-model': str,
+            'teacher-model': str,
+            'creator-model': str,
+        }
+        """
+
+        self.prompt = ""
+        self.few_shot_str = ""
+
+        self.config = self.construct_config(func_config)
+
+        self.promptGen = PromptGenerator(
+            instruction_source=self.config["instruction-source"],
+            refine_flag=self.config["instruction-refine"],
+        )
+        self.prompt = self.promptGen.generate_prompts([keyword])[0]
+
+        self.slicer = Slicer(
+            student_model=self.config["student-model"], 
+            teacher_model=self.config["teacher-model"],
+            creator_model=self.config["creator-model"],
+        )
+        if self.config["few-shot"]:
+            self.few_shot_str = self.slicer.generate_few_shot_example(data, 
+                self.prompt, 
+                num=self.config["few-shot-size"], 
+                input_sampling_strategy=self.config["few-shot-sampling-strategy"],
+                output_label_source=self.config["few-shot-labeling-strategy"],
+                synthesize=self.config["few-shot-synthesis"],
+            )
+
+    def construct_config(self, func_config):
+        default_config = {
+            'few-shot': True,
+            'few-shot-size': 8,
+            'few-shot-sampling-strategy': 'diversity',
+            'few-shot-labeling-strategy': 'teacher',
+            'few-shot-synthesis': False,
+            'instruction-source': 'template',
+            'instruction-refine': False,
+            'student-model': 'flan-t5-xxl',
+            'teacher-model': 'gpt-4-turbo-preview',
+            'creator-model': 'gpt-4-turbo-preview',
+        }
+        default_config.update(func_config)
+        return default_config
+
+    def show_prompt(self):
+        return SYSTEM_PROMPT.format(question=self.prompt) + self.few_shot_str
+
+    def update_prompt(self, prompt=None, few_shot_str=None):
+        if prompt !=  None:
+            self.prompt = prompt
+        if few_shot_str !=  None:
+            self.few_shot_str = few_shot_str
+
+    def gen_slicing_func(self):
+        def generic_slicing_function(example):
+            dialogs = [
+                [
+                    {"role": "system", "content": SYSTEM_PROMPT.format(question=self.prompt) + self.few_shot_str},
+                    {"role": "user", "content": PROMPT.format(question=self.prompt, passage=example)}
+                ]
+            ]
+            results = self.slicer.generator._send_request(dialogs)
+            meta_result = [result for result in results]
+            binary_result = [True if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else False for x in meta_result]
+            return binary_result[0]
+        
+        return generic_slicing_function 
+
 
 if __name__ == "__main__":
     args = parseArg()

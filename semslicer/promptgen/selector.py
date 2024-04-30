@@ -51,8 +51,8 @@ def select_random_examples(dialogs, nums, seed=42, clusters=None):
 
 class PromptSelector:
 
-    def __init__(self, ):
-        self.noise_estimate_flag = config["PROMPT_ANALYSIS"]["NOISE_ESTIMATE"]
+    def __init__(self, noise_estimate_flag=False):
+        self.noise_estimate_flag = noise_estimate_flag
 
     def noise_estimate(self, df, key, prompt_num):
         # genearte input to network
