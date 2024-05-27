@@ -1,3 +1,3 @@
 # SemSlicer
 
-Slice any datasets on any semantic concepts with LLMs.
+Slice any datasets on any semantic criteria with LLMs.
