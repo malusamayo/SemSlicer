@@ -22,7 +22,13 @@ SLICING:
   SAMPLING: false
   SAMPLE_SIZE: 1000
   CALIBRATE: false
-  MODEL_NAME: flan-t5-xxl
+  BATCH_SIZE: 5
+
+MODEL:
+  STUDENT: flan-t5-xxl
+  CREATOR: gpt-4-turbo-preview
+  TEACHER: gpt-4-turbo-preview
+
 
 PROMPT_ANALYSIS:
   NOISE_ESTIMATE: false
