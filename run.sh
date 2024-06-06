@@ -45,25 +45,5 @@ for method in 'zs' 'fs', 'fs-div', 'fs-div-teach', 'fs-syn' 'zs-gen' 'zs-ref'; d
         --keyword_path="${keyword_paths[$dataset]}"
 done
 
-# python -m semslicer.main  --task='slicing' --exp_name='sbic_v2_gpt3.5_0' --config='config_sbic.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='hqa_t5_5' --config='config_hqa.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='cc_t5_full_10' --config='config_cc.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='mmlu_t5_1' --config='config_mmlu.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='amazon_t5_full_6' --config='config_amazon.yaml'
-# python -m semslicer.main  --task='find_prompts' --exp_name='yahoo_t5_0' --config='config_yahoo.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='ge_t5_1' --config='config_emotion.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='ge_t5_2' --config='config_emotion.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='yahoo_t5_full_4' --config='config_yahoo.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='irony_t5_0' --config='config_irony.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='ait_t5_8' --config='config_ait.yaml'
-# python -m semslicer.main  --task='slicing' --exp_name='sted_t5_0' --config='config_sted.yaml'
-
-# python -m semslicer.main  --task='find_prompts' --exp_name='disamqa_llama_0'
-# python -m semslicer.main --task slicing --exp_name='rte_t5_0'
-# python -m semslicer.main --task slicing --exp_name='tweet-emo_t5_al_cali_0'
-# python -m semslicer.main --task slicing --exp_name='disamqa_llama_al_30shot_0'
-# python -m semslicer.main --task label --exp_name='disamqa_llama_0'/home/cyang3/slicing/result/
-
-
 
 
