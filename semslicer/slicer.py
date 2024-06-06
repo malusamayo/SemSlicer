@@ -32,6 +32,22 @@ SYSTEM_PROMPT =  '''{question} Answer ONLY yes or no.\n\n''' # Do NOT explain yo
 PROMPT = '''Text: {passage}
 Answer: '''
 
+SYSTEM_PROMPT_COT =  '''{question} Answer yes or no. Write down your rationale before your answer. Your rationale should be concise.
+
+Follow the following format:
+Text: {{text}}
+Rationale: {{rationale}}
+Answer: {{answer}}
+'''
+PROMPT_COT = '''Text: {passage}
+Rationale: Let's think step by step.'''
+
+COT_FLAG = False
+if COT_FLAG:
+    SYSTEM_PROMPT = SYSTEM_PROMPT_COT
+    PROMPT = PROMPT_COT
+   
+
 def from_few_shot_str(few_shot_str):
     texts = re.split(r'Text: |Answer: ', few_shot_str)
     texts = texts[1:]
@@ -127,6 +143,10 @@ class Slicer(object):
         logger.info(f"total_tokens = {self.generator.compute_total_tokens(dialogs)}")
         
         binary_result = [label_map['yes'] if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else label_map['no'] for x in meta_result]
+        # if COT_FLAG:
+        #     answer_result = [result.split('Answer:')[1] for result in meta_result]
+        #     binary_result = [label_map['yes'] if x.lower().find("yes") != -1 and x.lower().find("no") == -1 else label_map['no'] for x in answer_result]
+        
         return meta_result, binary_result, probs
 
     def synthesize_examples(self,
@@ -246,6 +266,9 @@ class Slicer(object):
                 prompt = self.prompt_selector.select_prompt(prompt_df, keyword, criteria='default')
 
             clusters = None
+            if input_sampling_strategy == "human":
+                clusters = data[keyword].astype(int).tolist()
+
             # select prompt
             few_shot_str = self.generate_few_shot_example(data, prompt, num=num, 
                 input_sampling_strategy=input_sampling_strategy, output_label_source=output_label_source, 

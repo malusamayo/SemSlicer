@@ -6,7 +6,7 @@ import pandas as pd
 from .model.llm_server import Generator
 
 logger = get_logger("INFO", "run model")
-generator = Generator("llama2", "13b-chat")
+# generator = Generator("llama2", "13b-chat")
 
 SYSTEM_PROMPT=''''''
 
@@ -141,24 +141,28 @@ def run_model():
 
     # dataset = load_and_filter_dataset("heegyu/bbq", ["Age", "Gender_identity", "Disability_status", "Nationality", "Religion"], 'test')
     # dataset = load_and_filter_dataset("tweet_eval", ['stance_abortion', 'stance_atheism', 'stance_climate', 'stance_feminist', 'stance_hillary'], 'train')
-    dataset = load_and_filter_dataset("cais/mmlu", ["high_school_biology", "high_school_chemistry", "high_school_psychology", "high_school_macroeconomics", "high_school_statistics"], 'test')
-    dataset = dataset.add_column("context", [row["question"] + ' ' + row["choices"][row["answer"]] for row in dataset])
 
-    # # generate dialogs
-    dialogs = [ row_to_dialog(row) for row in dataset ]
+    # dataset = load_and_filter_dataset("cais/mmlu", ["high_school_biology", "high_school_chemistry", "high_school_psychology", "high_school_macroeconomics", "high_school_statistics"], 'test')
+    # dataset = dataset.add_column("context", [row["question"] + ' ' + row["choices"][row["answer"]] for row in dataset])
     
-    logger.info("generated dialogs")
+    # dataset = load_and_filter_dataset("SetFit/rte", [], 'validation')
+    # dataset = dataset.add_column("context", ["Sentence 1: " + row["text1"] + '\nSentence 2: ' + row["text2"] for row in dataset])
 
-    # generate results
-    results = generator._send_request(dialogs=dialogs, max_gen_len=1700, temperature=0.02, batch_size=10)
-    logger.info("generated results")
+    dataset = load_and_filter_dataset("tweet_eval", ['emotion'], 'test')
+
+
+    # # # generate dialogs
+    # dialogs = [ row_to_dialog(row) for row in dataset ]
     
-    # save results to datasets
-    dataset = dataset.add_column("generated_answer", results)
-    logger.info("added column")
+    # logger.info("generated dialogs")
 
-    # save to disk
-    dataset.save_to_disk(config["RUN"]["OUTPUT_PATH"])
+    # # generate results
+    # results = generator._send_request(dialogs=dialogs, max_gen_len=1700, temperature=0.02, batch_size=10)
+    # logger.info("generated results")
+    
+    # # save results to datasets
+    # dataset = dataset.add_column("generated_answer", results)
+    # logger.info("added column")
 
     # save to csv
     dataset.to_csv(config["RUN"]["CSV_PATH"])
