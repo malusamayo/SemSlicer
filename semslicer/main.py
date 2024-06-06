@@ -29,20 +29,15 @@ def main():
 
     if args.task == "find_prompts":
         promptGen = PromptGenerator(
+            model_name=config["MODEL"]["CREATOR"],
             instruction_source=config["INSTRUCTION"]["SOURCE"],
             refine_flag=config["INSTRUCTION"]["REFINE"],
         )
         promptGen.find_prompts_list(keyword_df)
-        slicer = Slicer(model_name="dummy")
-        if config["EXAMPLES"]["USE_FEW_SHOT"]:
-            if not os.path.exists(config["EXPERIMENT"]["FEW_SHOT_PATH"]):
-                slicer.generate_few_shot_example_batch(data, keywords, 
-                    num=config["EXAMPLES"]["FEW_SHOT_SIZE"], 
-                    input_sampling_strategy=config["EXAMPLES"]["SAMPLE_STRATEGY"],
-                    output_label_source=config["EXAMPLES"]["LABEL_SOURCE"], 
-                    synthesize=config["EXAMPLES"]["SYNTHESIZE"])
     elif args.task == "slicing":
-        slicer = Slicer(model_name=config["SLICING"]["MODEL_NAME"])
+        slicer = Slicer(student_model=config["MODEL"]["STUDENT"], 
+            teacher_model=config["MODEL"]["TEACHER"],
+            batch_size=config["SLICING"]["BATCH_SIZE"])
         if config["SLICING"]["SAMPLING"]:
             data = data.sample(n=config["SLICING"]["SAMPLE_SIZE"], random_state=42)
         slicer.annotate_batch(data, keywords, 
