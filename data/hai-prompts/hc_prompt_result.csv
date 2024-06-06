@@ -1,0 +1,2 @@
+women_prompt,trans people_prompt,gay people_prompt,black people_prompt,disabled people_prompt,Muslims_prompt,immigrants_prompt
+"Determine if the text mentions women.","Classify if the text mentions trans people.","Does the text mention gay people?","Determine if the text mentions Black people.","Does the text mention people with disabilities?","Does the text mention Muslims?","Does the text mention immigrants?"
