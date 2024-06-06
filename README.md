@@ -4,7 +4,7 @@ Slice any datasets on any semantic criteria with LLMs.
 
 
 ### Experiments Reproduction
-To reproduce our experiments (automated setups), please run `sbatch run.sh {dataset}` on a cluster, using the according datasets.
+To reproduce our experiments (automated setups), please run `sbatch run.sh {dataset}` on a cluster, using the according datasets. Please specify your OPENAI KEY in the command line first.
 
 To reproduce our experiements (human in the loop setups), please replace the generated prompts with our edited prompts in `data/hai-prompts`
 
